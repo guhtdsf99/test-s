@@ -78,9 +78,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # Use SQLite locally, PostgreSQL in production
+# Database configuration using dj-database-url
+# This will use the DATABASE_URL from the environment variables on Railway (PostgreSQL)
+# and fall back to SQLite for local development.
 DATABASES = {
     'default': dj_database_url.config(
-        default='sqlite:///' + str(BASE_DIR / 'db.sqlite3'),
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600
     )
 }
@@ -147,9 +150,18 @@ EMAIL_USE_TLS = True
 
 # --- CORS and CSRF Configuration ---
 
-# Allow all origins to make requests.
-# WARNING: This is insecure and should only be used for debugging.
-CORS_ALLOW_ALL_ORIGINS = True
+# This list contains the URLs that are allowed to make requests to this backend.
+# It's better to be explicit about origins than to allow all.
+CORS_ALLOWED_ORIGINS = [
+    # Production Frontend
+    'https://test-s-production.up.railway.app',
+
+    # Local development
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173',  # Vite default
+    'http://127.0.0.1:5173',
+]
 
 # This list contains the URLs that are trusted for POST/PUT/DELETE requests.
 # It helps prevent Cross-Site Request Forgery attacks.
