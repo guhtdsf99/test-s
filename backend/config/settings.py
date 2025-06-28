@@ -153,8 +153,14 @@ EMAIL_USE_TLS = True
 # This list contains the URLs that are allowed to make requests to this backend.
 # It's better to be explicit about origins than to allow all.
 CORS_ALLOWED_ORIGINS = [
-    # Production Frontend
-    'https://test-s-production.up.railway.app',
+    # Production Custom Domain
+    'https://www.cbulwark.tech',
+
+    # Production Backend (for admin panel access)
+    'https://phishaware-backend-production.up.railway.app',
+
+    # Wildcard for any Railway services in the project
+    'https://*.up.railway.app',
 
     # Local development
     'http://localhost:3000',
@@ -166,13 +172,13 @@ CORS_ALLOWED_ORIGINS = [
 # This list contains the URLs that are trusted for POST/PUT/DELETE requests.
 # It helps prevent Cross-Site Request Forgery attacks.
 CSRF_TRUSTED_ORIGINS = [
-    # Production Frontend
-    'https://test-s-production.up.railway.app',
+    # Production Custom Domain
+    'https://www.cbulwark.tech',
 
     # Production Backend (for admin panel access)
-    'https://adventurous-magic-production.up.railway.app',
-    
-    # Wildcard for other potential subdomains
+    'https://phishaware-backend-production.up.railway.app',
+
+    # Wildcard for any Railway services in the project
     'https://*.up.railway.app',
 
     # Local development
