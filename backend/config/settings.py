@@ -140,79 +140,52 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
-
 # Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # Email host, port, and credentials are now configured from the database
 EMAIL_USE_TLS = True
 
+# --- CORS and CSRF Configuration ---
 
-# CORS Settings
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins for testing
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-]
-CORS_ORIGIN_WHITELIST = [
-    'http://localhost:3000',  # Default React dev server
-    'http://127.0.0.1:3000',  # Alternative localhost
-    'http://localhost:8000',  # Django dev server
-    'http://127.0.0.1:8000',  # Django dev server alternative
-    'https://phish-aware-academy-frontend-production.up.railway.app',  # Railway frontend
-    'https://phishaware-backend-production.up.railway.app',  # Railway backend
+# This list contains the URLs that are allowed to make requests to this backend.
+# It's better to be explicit about origins than to allow all.
+CORS_ALLOWED_ORIGINS = [
+    # Production Frontend
+    'https://test-s-production.up.railway.app',
+
+    # Local development
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173',  # Vite default
+    'http://127.0.0.1:5173',
 ]
 
-# Use environment variable if available
-import os
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:8080')
-BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
+# This list contains the URLs that are trusted for POST/PUT/DELETE requests.
+# It helps prevent Cross-Site Request Forgery attacks.
 CSRF_TRUSTED_ORIGINS = [
-    FRONTEND_URL, 
-    BACKEND_URL,
-    'https://phish-aware-academy-frontend-production.up.railway.app',
-    'https://phishaware-backend-production.up.railway.app',
+    # Production Frontend and Backend
+    'https://test-s-production.up.railway.app',
+    'https://adventurous-magic-production.up.railway.app',
+
+    # Wildcard for any other Railway services in the project
+    'https://*.up.railway.app',
+
+    # Local development
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
 ]
 
-# CSRF settings for cross-origin requests
-CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_HTTPONLY = False  # Set to False to allow JavaScript access
-CSRF_COOKIE_SAMESITE = 'None'  # Allow cross-site requests
-CSRF_USE_SESSIONS = False  # Don't use sessions for CSRF
-CSRF_COOKIE_DOMAIN = '.up.railway.app'  # Allow sharing across Railway subdomains
-CORS_ORIGIN_WHITELIST.append(FRONTEND_URL)
-if  DEBUG:
-     CSRF_COOKIE_DOMAIN = None        # ← allow localhost
+# Allow cookies to be sent with cross-origin requests
+CORS_ALLOW_CREDENTIALS = True
+
+# Cookie settings for production
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SAMESITE = 'Lax'  # 'None' can also be used if needed for specific auth flows
+
 # Email tracking settings
 EMAIL_TRACKING_ENABLED = True
-EMAIL_TRACKING_URL = BACKEND_URL
-
-# Session and CSRF settings for cross-origin requests
-SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = not DEBUG  # True in production
-# CSRF settings for cross-origin requests
-CSRF_COOKIE_SAMESITE = 'None' if not DEBUG else 'Lax'
-CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read the CSRF token
-CSRF_COOKIE_SECURE = not DEBUG  # Use secure cookies in production
-CSRF_USE_SESSIONS = False
-CSRF_TRUSTED_ORIGINS = [
-    'https://phishaware-backend-production.up.railway.app',
-    'https://*.up.railway.app',
-]
+EMAIL_TRACKING_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
