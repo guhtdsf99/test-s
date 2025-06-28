@@ -166,25 +166,36 @@ CORS_ALLOWED_ORIGINS = [
 # This list contains the URLs that are trusted for POST/PUT/DELETE requests.
 # It helps prevent Cross-Site Request Forgery attacks.
 CSRF_TRUSTED_ORIGINS = [
-    # Production Frontend and Backend
+    # Production Frontend
     'https://test-s-production.up.railway.app',
-    'https://adventurous-magic-production.up.railway.app',
 
-    # Wildcard for any other Railway services in the project
+    # Production Backend (for admin panel access)
+    'https://adventurous-magic-production.up.railway.app',
+    
+    # Wildcard for other potential subdomains
     'https://*.up.railway.app',
 
     # Local development
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'http://localhost:5173',
+    'http://localhost:5173',  # Vite default
     'http://127.0.0.1:5173',
 ]
+
+# --- Production Security Settings ---
+# These settings are crucial for running behind a proxy like Railway on HTTPS.
+
+# Tell Django to trust the 'X-Forwarded-Proto' header from the proxy.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Mark session and CSRF cookies as secure, so browsers send them over HTTPS.
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 
 # Allow cookies to be sent with cross-origin requests
 CORS_ALLOW_CREDENTIALS = True
 
 # Cookie settings for production
-SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SAMESITE = 'Lax'  # 'None' can also be used if needed for specific auth flows
