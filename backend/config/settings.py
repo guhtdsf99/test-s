@@ -147,18 +147,9 @@ EMAIL_USE_TLS = True
 
 # --- CORS and CSRF Configuration ---
 
-# This list contains the URLs that are allowed to make requests to this backend.
-# It's better to be explicit about origins than to allow all.
-CORS_ALLOWED_ORIGINS = [
-    # Production Frontend
-    'https://test-s-production.up.railway.app',
-
-    # Local development
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:5173',  # Vite default
-    'http://127.0.0.1:5173',
-]
+# Allow all origins to make requests.
+# WARNING: This is insecure and should only be used for debugging.
+CORS_ALLOW_ALL_ORIGINS = True
 
 # This list contains the URLs that are trusted for POST/PUT/DELETE requests.
 # It helps prevent Cross-Site Request Forgery attacks.
