@@ -1,0 +1,15 @@
+Django==4.2.7
+djangorestframework==3.14.0
+djangorestframework-simplejwt==5.3.0
+django-cors-headers==4.3.0
+python-dotenv==1.0.0
+gunicorn==21.2.0
+dj-database-url==2.1.0
+# Optional ‑ needed only when a pre-built wheel exists (Linux / macOS or Windows < Py3.12)
+# Skip on Windows + Python 3.12 where no wheel is available to avoid build failure.
+psycopg2-binary==2.9.9; sys_platform != "win32" or python_version < "3.12"
+whitenoise==6.6.0
+beautifulsoup4==4.12.2
+Pillow==10.3.0; python_version < "3.13"
+django-apscheduler==0.6.2
+fpdf2==2.7.6

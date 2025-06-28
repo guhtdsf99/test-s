@@ -1,0 +1,403 @@
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { FileSpreadsheet, UserPlus, Upload, Check, UserRound, RefreshCw, Loader2, Search } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
+import { userService } from '@/services/api';
+
+// Use the User and Department interfaces from the API service
+import { User, Department } from '@/services/api';
+
+export const UserManualEntry = () => {
+  const { toast } = useToast();
+  const [file, setFile] = useState<File | null>(null);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [department, setDepartment] = useState('');
+  const [role, setRole] = useState('USER');
+  
+  const [users, setUsers] = useState<User[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Fetch users and departments on component mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+  
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [usersData, departmentsData] = await Promise.all([
+        userService.getUsers(),
+        userService.getDepartments()
+      ]);
+      setUsers(usersData);
+      setDepartments(departmentsData);
+    } catch (error) {
+      toast({
+        title: "Failed to load data",
+        description: "There was an error loading users and Groups. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleFileUpload = async () => {
+    if (!file) {
+      toast({
+        title: "No file selected",
+        description: "Please select an Excel file to upload",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+
+    toast({
+      title: "File upload started",
+      description: `Uploading ${file.name}. This may take a moment.`,
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await userService.uploadUsersBulk(formData);
+      
+      // Check if response has the expected format
+      if (response && response.created_users && Array.isArray(response.created_users)) {
+        setUsers([...users, ...response.created_users]);
+        
+        // Show any errors in the toast if there are any
+        if (response.errors && response.errors.length > 0) {
+          toast({
+            title: `Upload partially successful (${response.total_created} users added)`,
+            description: `There were ${response.total_errors} errors: ${response.errors.slice(0, 3).join(', ')}${response.errors.length > 3 ? '...' : ''}`,
+            variant: "destructive", // Using destructive instead of warning as it's a supported variant
+          });
+          return;
+        }
+      } else {
+        console.error('Unexpected response format:', response);
+        // If the response is an array, use it directly (backward compatibility)
+        if (Array.isArray(response)) {
+          setUsers([...users, ...response]);
+        } else {
+          throw new Error('Invalid response format from server');
+        }
+      }
+      
+      toast({
+        title: "Upload successful",
+        description: `${file.name} has been uploaded and users added successfully.`,
+      });
+      
+      setFile(null);
+      // Reset the file input
+      const fileInput = document.getElementById('excel-upload') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "There was an error uploading the file. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddUser = async () => {
+    if (!firstName || !lastName || !email || !department || !role) {
+      toast({
+        title: "Incomplete information",
+        description: "Please enter all required information",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const newUser = await userService.addUser({
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        department,
+        role
+      });
+
+      setUsers([...users, newUser]);
+      
+      toast({
+        title: "User added",
+        description: "User has been added successfully",
+      });
+
+      // Clear form
+      setFirstName('');
+      setLastName('');
+      setEmail('');
+      setDepartment('');
+      setRole('USER');
+    } catch (error) {
+      toast({
+        title: "Failed to add user",
+        description: "There was an error adding the user. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Filter users based on search term
+  const filteredUsers = users.filter(user => 
+    `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.department?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <UserPlus className="h-5 w-5 text-[#907527]" />
+          Add Users
+        </CardTitle>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleRefresh} 
+          disabled={loading || refreshing}
+          className="flex items-center gap-1"
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="manual" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="manual" className="flex items-center gap-1">
+              <UserPlus className="h-4 w-4" />
+              <span>Manual Entry</span>
+            </TabsTrigger>
+            <TabsTrigger value="excel" className="flex items-center gap-1">
+              <FileSpreadsheet className="h-4 w-4" />
+              <span>Import from Excel</span>
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="manual" className="space-y-4 py-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    value={firstName} 
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Enter first name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    value={lastName} 
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Enter last name"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input 
+                  id="email"
+                  type="email"
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter email address"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="department">Group</Label>
+                <Select value={department} onValueChange={setDepartment}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Group" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.length > 0 ? (
+                      departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="default" disabled>
+                        No Groups available
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="role">Role</Label>
+                <Select value={role} onValueChange={setRole}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USER">User</SelectItem>
+                    <SelectItem value="COMPANY_ADMIN">Company Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button 
+              onClick={handleAddUser}
+              className="bg-[#907527] hover:bg-[#705b1e]"
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add User
+            </Button>
+          </TabsContent>
+          
+          <TabsContent value="excel" className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="excel-upload">Upload Excel File with Users</Label>
+              <div className="grid gap-2">
+                <Input
+                  id="excel-upload"
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileChange}
+                />
+                <div className="text-xs text-gray-500">
+                  Accepted formats: .xlsx, .xls, .csv
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {file && (
+                <div className="text-sm">
+                  Selected: {file.name}
+                </div>
+              )}
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Required Columns</Label>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex items-center gap-2 bg-gray-50 p-2 rounded">
+                    <Check className="h-4 w-4 text-green-500" />
+                    <span>Email Address</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-gray-50 p-2 rounded">
+                    <Check className="h-4 w-4 text-green-500" />
+                    <span>Name</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-gray-50 p-2 rounded">
+                    <Check className="h-4 w-4 text-green-500" />
+                    <span>Group</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <Button 
+              onClick={handleFileUpload}
+              disabled={!file}
+              className="bg-[#907527] hover:bg-[#705b1e]"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Users
+            </Button>
+          </TabsContent>
+        </Tabs>
+
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium">User List</h3>
+            <div className="relative w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search users..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+          </div>
+          
+          {loading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Group</TableHead>
+                  <TableHead>Role</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                      {searchTerm ? 'No users found matching your search.' : 'No users found in this company.'}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredUsers.map(user => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        {user.department_name || '-'}
+                      </TableCell>
+                      <TableCell className="capitalize">{user.role?.toLowerCase()}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
