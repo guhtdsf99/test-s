@@ -182,7 +182,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:5173',
 ]
 
-# --- Production Security Settings ---
+# --- Production Security & Cookie Settings ---
 # These settings are crucial for running behind a proxy like Railway on HTTPS.
 
 # Tell Django to trust the 'X-Forwarded-Proto' header from the proxy.
@@ -192,13 +192,13 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
-# Allow cookies to be sent with cross-origin requests
-CORS_ALLOW_CREDENTIALS = True
+# Set SameSite policy. 'Lax' is a good default for security and works correctly
+# for same-site access like the Django admin panel.
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
 
-# Cookie settings for production
-CSRF_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SAMESITE = 'None'
-SESSION_COOKIE_SAMESITE = 'Lax'  # 'None' can also be used if needed for specific auth flows
+# Allow cookies to be sent with cross-origin requests (important for frontend API calls)
+CORS_ALLOW_CREDENTIALS = True
 
 # Email tracking settings
 EMAIL_TRACKING_ENABLED = True
