@@ -62,7 +62,7 @@ const LMSCampaigns = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4 mb-6">
           <div className="flex items-center gap-2">
             <Video className="h-6 w-6 text-[#907527]" />
-              <h1 className="text-2xl font-bold text-gray-200">LMS Management</h1>
+              <h1 className="text-2xl font-bold text-indigo-400">LMS Management</h1>
           </div>
 
           <div className="flex flex-wrap gap-2">

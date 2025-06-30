@@ -421,7 +421,7 @@ const EmployeeCourses = () => {
   return (
     <MainLayout>
       <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl font-bold mb-6 text-gray-200">My Training Courses</h1>
+          <h1 className="text-2xl font-bold mb-6 text-indigo-400">My Training Courses</h1>
         
         <Tabs defaultValue="active">
           <TabsList className="mb-6">

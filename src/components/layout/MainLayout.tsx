@@ -14,7 +14,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <main 
           className="flex-grow p-6 md:p-8"
           style={{
-            background: 'linear-gradient(to bottom, #55393bb0, #ffffff)'
+            background: 'linear-gradient(to bottom, #b2dfdb, #ffffff)'
           }}
         >
           {children}
