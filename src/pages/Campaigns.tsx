@@ -87,7 +87,8 @@ const Campaigns = () => {
         throw new Error('No authentication token found');
       }
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://adventurous-magic-production.up.railway.app'}/api/email/campaigns/${campaignId}/`, {
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://adventurous-magic-production.up.railway.app';
+      const response = await fetch(`${baseUrl}/api/email/campaigns/${campaignId}/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -122,7 +123,8 @@ const Campaigns = () => {
         throw new Error('No authentication token found');
       }
       
-      const url = `${import.meta.env.VITE_API_URL || 'https://adventurous-magic-production.up.railway.app'}/api/email/campaigns/${campaign.id}/analytics/`;
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://adventurous-magic-production.up.railway.app';
+      const url = `${baseUrl}/api/email/campaigns/${campaign.id}/analytics/`;
       
       const response = await fetch(url, {
         method: 'GET',
