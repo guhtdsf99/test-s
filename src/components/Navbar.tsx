@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Menu, Book, BookOpen, FileText, BarChart, BarChart3, Users, Mail, LogOut, User, Send } from 'lucide-react';
+import { Menu, Book, BookOpen, FileText, BarChart, BarChart3, Users, Mail, LogOut, User, Send, Bot } from 'lucide-react';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from '@/contexts/AuthContext';
@@ -149,6 +149,14 @@ const Navbar = () => {
               <div className="flex items-center gap-1">
                 <Book className="h-4 w-4" />
                 <span>My Courses</span>
+              </div>
+            </Link>
+
+            {/* AI Chatbot link */}
+            <Link to={getLink("/ai-chatbot")} className={getLinkClasses("/ai-chatbot")}>
+              <div className="flex items-center gap-1">
+                <Bot className="h-4 w-4" />
+                <span>AI Assistant</span>
               </div>
             </Link>
             

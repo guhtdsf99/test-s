@@ -232,9 +232,9 @@ const Dashboard = () => {
         <div className="max-w-7xl mx-auto">
           {/* Dashboard Header */}
           <div className="flex flex-col mb-5">
-          <div className="bg-gradient-to-r from-gray-900 to-blue-900 rounded-xl p-6 text-white">
+          <div className="bg-gradient-to-r from-[#6a4548] to-[#3d292a] rounded-xl p-6 text-white">
         <h2 className="text-2xl font-bold mb-2">Security Dashboard Overview</h2>
-        <p className="text-blue-200">Monitor your organization's cybersecurity awareness and threat readiness</p>
+        <p className="text-[#d1b8b9]">Monitor your organization's cybersecurity awareness and threat readiness</p>
       </div>
           </div>
 

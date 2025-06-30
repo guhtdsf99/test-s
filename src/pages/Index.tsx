@@ -22,64 +22,33 @@ const Index = () => {
       </header>
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-white to-[#f5f3e8] pt-16 pb-20 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <div className="inline-flex items-center px-4 py-2 bg-[#f5f3e8] border border-[#e5e2d3] rounded-full">
-                <span className="text-sm font-medium text-[#907527]">New: Custom Phishing Templates</span>
-              </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-                <span className="text-[#0a192f]">CSWORD Academy</span> - Training Your <span className="text-[#907527]">Security Heroes</span>
-              </h1>
-              <p className="text-lg text-gray-600">
-                Create realistic phishing simulations that educate employees and strengthen your security posture.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button className="bg-[#907527] hover:bg-[#705b1e] text-white py-6 px-8 rounded-lg text-lg">
-                  Start Free Trial
-                </Button>
-                <Button variant="outline" className="bg-white text-[#907527] border-[#907527] hover:bg-[#f5f3e8] py-6 px-8 rounded-lg text-lg">
-                  View Demo
-                </Button>
-              </div>
-              
-              <div className="flex items-center gap-2 text-gray-600">
-                <CheckCircle className="h-5 w-5 text-[#907527]" />
-                <span>No credit card required</span>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 relative">
-              <div className="absolute -top-3 -right-3 bg-[#907527] text-white px-4 py-1 rounded-full text-sm font-medium">
-                Simulation Preview
-              </div>
-              <div className="border border-gray-200 rounded-lg p-4 mb-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <Mail className="h-5 w-5 text-[#907527]" />
-                  <div>
-                    <p className="font-medium">Security Alert: Urgent Action Required</p>
-                    <p className="text-sm text-gray-500">security@trusted-company.com</p>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-700 mb-3">
-                  Dear Employee, <br /><br />
-                  We have detected unusual activity on your account. Please verify your identity by clicking the link below.
-                </p>
-                <Button variant="outline" className="w-full justify-center text-[#907527] border-[#907527]">
-                  Verify Account Now
-                </Button>
-              </div>
-              <div className="bg-[#f5f3e8] border border-[#e5e2d3] rounded-lg p-4">
-                <h4 className="font-medium text-[#0a192f] flex items-center gap-2 mb-2">
-                  <CheckCircle className="h-5 w-5 text-[#907527]" /> Learning Opportunity
-                </h4>
-                <p className="text-sm text-[#0a192f]">
-                  This is a simulated phishing email. The urgent language, generic greeting, and suspicious link are all red flags.
-                </p>
-              </div>
-            </div>
+      <section className="min-h-[70vh] flex items-center justify-center bg-gradient-to-b from-white to-[#f5f3e8] px-6 py-12">
+        <div className="max-w-4xl mx-auto text-center">
+          {/* CBulwark Logo */}
+          <div className="flex justify-center mb-8">
+            <img 
+              src="/lovable-uploads/876a553e-d478-4016-a8f0-1580f492ca19.png" 
+              alt="CBulwark Logo" 
+              className="h-24 w-auto" 
+            />
           </div>
+          
+          {/* Welcome Message */}
+          <h1 className="text-4xl md:text-5xl font-bold text-[#0a192f] mb-6">
+            Welcome to our AI-powered Awareness Platform
+          </h1>
+          
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Check CSWORD AI for more information about other services
+          </p>
+          
+          {/* Clickable Button */}
+          <Button 
+            className="bg-[#0a192f] hover:bg-[#1a2f4f] text-white py-6 px-8 rounded-lg text-lg font-medium transition-colors duration-200"
+            onClick={() => window.open('https://csword.ai', '_blank')}
+          >
+            Visit CSWORD AI
+          </Button>
         </div>
       </section>
       

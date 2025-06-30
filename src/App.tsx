@@ -24,6 +24,7 @@ import Campaigns from "./pages/Campaigns";
 import EmployeeCourses from "./pages/EmployeeCourses";
 import ProfileSettings from "./pages/ProfileSettings";
 import SuperAdminPanel from "./pages/SuperAdminPanel";
+import AIChatbot from "./pages/AIChatbot";
 import { CompanyRoute } from "./components/auth/CompanyRoute";
 
 const queryClient = new QueryClient();
@@ -77,12 +78,14 @@ const App = () => (
               <Route path="user-management" element={<UserManagement />} />
               <Route path="sender" element={<Sender />} />
               <Route path="lms-campaigns" element={<LMSCampaigns />} />
+              <Route path="ai-chatbot" element={<AIChatbot />} />
             </Route>
             
             {/* Routes accessible to all authenticated users */}
             <Route element={<ProtectedRoute restrictUserRole={false} />}>
               <Route path="employee-courses" element={<EmployeeCourses />} />
               <Route path="profile-settings" element={<ProfileSettings />} />
+              <Route path="ai-chatbot" element={<AIChatbot />} />
               {/* Additional non-admin routes can go here */}
             </Route>
           </Route>
