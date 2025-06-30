@@ -34,7 +34,7 @@ const Navbar = () => {
   const getLinkClasses = (path: string) =>
     `flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 w-full ` +
     (isActive(path)
-      ? 'bg-[#b89532] text-secondary font-medium' // active: gold background, navy text
+      ? 'bg-[#56393b] text-secondary font-medium' // active: maroon background, navy text
       : 'text-gray-300 hover:bg-gray-700 hover:text-white');
   
   // Check if a path is active, considering company context and sub-routes
@@ -82,7 +82,7 @@ const Navbar = () => {
         </DropdownMenu>
       </div>
       )}
-      <nav className="bg-secondary text-white md:h-screen md:w-64 md:fixed md:top-0 md:left-0 md:flex md:flex-col md:overflow-y-auto z-40 border-b md:border-b-0 md:border-r border-gray-700 py-4 md:px-0 px-6 w-full">
+      <nav className="text-white md:h-screen md:w-64 md:fixed md:top-0 md:left-0 md:flex md:flex-col md:overflow-y-auto z-40 border-b md:border-b-0 md:border-r border-gray-700 py-4 md:px-0 px-6 w-full" style={{ backgroundColor: '#439797' }}>
         <div className="max-w-7xl md:mx-0 mx-auto flex justify-between items-center md:flex-col">
           {/* Logo box */}
           <div className="w-full p-4 border-b border-gray-700 flex justify-center items-center">
