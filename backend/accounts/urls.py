@@ -22,16 +22,17 @@ company_patterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='company_token_refresh'),
     path('profile/', views.UserProfileView.as_view(), name='company_profile'),
     path('change-password/', views.ChangePasswordView.as_view(), name='company_change_password'),
-    # User management endpoints
+
+    # User management endpoints - specific paths must come before generic ones
+    path('users/bulk-upload/', UserManagementView.as_view(), name='company_user_bulk_upload'),
+    path('users/reset-password/', UserPasswordResetView.as_view(), name='company_user_reset_password'),
     path('users/', UserManagementView.as_view(), name='company_user_list'),
-    path('users/<str:user_id>/', UserDetailView.as_view(), name='company_user_detail'),
-    path('users/<slug:company_slug>/reset-password/', UserPasswordResetView.as_view(), name='company_user_reset_password'),
     path('users/<str:user_id>/update-department/', UserDepartmentUpdateView.as_view(), name='company_user_update_department'),
+    path('users/<str:user_id>/', UserDetailView.as_view(), name='company_user_detail'),
+
     # Department management endpoints
     path('departments/', DepartmentListView.as_view(), name='company_department_list'),
     path('departments/<str:department_id>/', DepartmentDetailView.as_view(), name='company_department_detail'),
-    # Bulk upload endpoint
-    path('users/bulk-upload/', UserManagementView.as_view(), name='company_user_bulk_upload'),
 ]
 
 urlpatterns = [

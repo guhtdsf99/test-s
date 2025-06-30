@@ -101,7 +101,7 @@ const LMSCampaigns = () => {
           <TabsContent value="certificates">
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
+                <h2 className="text-gray-200 font-semibold flex items-center gap-2">
                   <Award className="h-5 w-5 text-yellow-500" />
                   Your Certificates
                 </h2>

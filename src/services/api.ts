@@ -5,8 +5,8 @@ const isProduction = window.location.hostname.includes('railway.app');
 
 // Use the hardcoded production URL if we're in production, otherwise use the environment variable or localhost
 const API_URL = isProduction
-  ? 'https://adventurous-magic-production.up.railway.app/api'
-  : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'https://adventurous-magic-production.up.railway.app/api');
+  ? 'https://phishaware-backend-production.up.railway.app/api'
+  : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://localhost:8000/api');
 
 // Get company slug from URL path (e.g., /company-name/dashboard)
 const getCompanySlug = (): string | null => {

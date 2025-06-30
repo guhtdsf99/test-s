@@ -90,6 +90,7 @@ class Company(models.Model):
     name = models.CharField(max_length=255, unique=True)
     slug = models.SlugField(max_length=255, unique=True, help_text="URL-friendly name for company subdirectory")
     description = models.TextField(blank=True)
+    number_of_allowed_users = models.IntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

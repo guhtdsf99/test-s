@@ -6,8 +6,6 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from .models import Company, Department
 from .serializers import UserSerializer
-# Temporarily commenting out pandas for deployment
-# import pandas as pd
 import io
 import csv
 import uuid
@@ -19,6 +17,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 import secrets
 import string
+import openpyxl
+import xlrd
 
 User = get_user_model()
 
@@ -241,8 +241,9 @@ class UserManagementView(APIView):
                 
                 # Process the CSV data
                 results = {
-                    'created': 0,
-                    'failed': 0,
+                    'created_users': [],
+                    'total_created': 0,
+                    'total_errors': 0,
                     'errors': []
                 }
                 
@@ -253,7 +254,7 @@ class UserManagementView(APIView):
                         missing_fields = [field for field in required_fields if field not in row or not row[field]]
                         
                         if missing_fields:
-                            results['failed'] += 1
+                            results['total_errors'] += 1
                             results['errors'].append(f"Row missing required fields: {', '.join(missing_fields)}")
                             continue
                             
@@ -271,7 +272,7 @@ class UserManagementView(APIView):
                                 
                         # Check if user with this email already exists in this company
                         if User.objects.filter(email=row['email'], company=company).exists():
-                            results['failed'] += 1
+                            results['total_errors'] += 1
                             results['errors'].append(f"User with email {row['email']} already exists in this company")
                             continue
                         
@@ -320,19 +321,17 @@ class UserManagementView(APIView):
                             user.set_password(password)
                             user.save()
                             
-                            # Skip sending password reset email
-                            response_data = UserSerializer(user).data
-                            response_data['email_sent'] = False
-                            response_data['email_skipped'] = "Welcome email sending is disabled"
+                            # Add created user to the results
+                            results['created_users'].append(UserSerializer(user).data)
+                            results['total_created'] += 1
                             
-                            results['created'] += 1
                         except Exception as e:
-                            results['failed'] += 1
+                            results['total_errors'] += 1
                             results['errors'].append(f"Error creating user {row['email']}: {str(e)}")
                             continue
                         
                     except Exception as e:
-                        results['failed'] += 1
+                        results['total_errors'] += 1
                         results['errors'].append(f"Error processing row: {str(e)}")
                 
                 return Response(results, status=status.HTTP_201_CREATED)
@@ -342,92 +341,221 @@ class UserManagementView(APIView):
                     {"detail": f"Error reading CSV file: {str(e)}"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        elif file.name.endswith(('.xls', '.xlsx')):
-            # Excel support temporarily disabled
-            return Response(
-                {"detail": "Excel file support is temporarily disabled. Please upload a CSV file instead."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        elif file.name.endswith('.xlsx'):
+            try:
+                workbook = openpyxl.load_workbook(file)
+                sheet = workbook.active
+                headers = [cell.value for cell in sheet[1]]
+                results = {
+                    'created_users': [],
+                    'total_created': 0,
+                    'total_errors': 0,
+                    'errors': []
+                }
+
+                for row_index, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+                    row_data = dict(zip(headers, row))
+                    try:
+                        # Validate required fields
+                        required_fields = ['first_name', 'last_name', 'email', 'role']
+                        missing_fields = [field for field in required_fields if field not in row_data or not row_data[field]]
+                        
+                        if missing_fields:
+                            results['total_errors'] += 1
+                            results['errors'].append(f"Row {row_index} missing required fields: {', '.join(missing_fields)}")
+                            continue
+                            
+                        # Generate username from email if not provided
+                        username = row_data.get('username', '')
+                        if not username:
+                            username = row_data['email'].split('@')[0]
+                            
+                            # Check if username exists and append numbers if needed
+                            base_username = username
+                            counter = 1
+                            while User.objects.filter(username=username).exists():
+                                username = f"{base_username}{counter}"
+                                counter += 1
+                                
+                        # Check if user with this email already exists in this company
+                        if User.objects.filter(email=row_data['email'], company=company).exists():
+                            results['total_errors'] += 1
+                            results['errors'].append(f"User with email {row_data['email']} already exists in this company")
+                            continue
+                        
+                        # Generate a random secure password regardless of what was provided
+                        # This ensures security by always using a strong random password
+                        password = generate_random_password(12)
+                        
+                        # Get or create department
+                        department_name = row_data.get('department', 'IT')
+                        department, created = Department.objects.get_or_create(
+                            name=department_name,
+                            company=company,
+                            defaults={'name': department_name, 'company': company}
+                        )
+                        
+                        try:
+                            # Create user object but don't save it yet
+                            user = User(
+                                username=username,
+                                email=row_data['email'],
+                                first_name=row_data['first_name'],
+                                last_name=row_data['last_name'],
+                                role=row_data['role'],
+                                company=company,
+                                department=department
+                            )
+                            
+                            # Generate UUID and company_email_id before saving
+                            if not user.uuid:
+                                user.uuid = uuid.uuid4()
+                            
+                            # Generate a unique company_email_id
+                            company_slug = company.slug if company.slug else str(company.id)
+                            base_id = f"{user.email}:{company_slug}"
+                            
+                            # Add a unique suffix if needed
+                            counter = 0
+                            temp_id = base_id
+                            while User.objects.filter(company_email_id=temp_id).exists():
+                                counter += 1
+                                temp_id = f"{base_id}:{counter}"
+                            
+                            user.company_email_id = temp_id
+                            
+                            # Set the password and save
+                            user.set_password(password)
+                            user.save()
+                            
+                            # Add created user to the results
+                            results['created_users'].append(UserSerializer(user).data)
+                            results['total_created'] += 1
+                            
+                        except Exception as e:
+                            results['total_errors'] += 1
+                            results['errors'].append(f"Error creating user {row_data['email']}: {str(e)}")
+                            continue
+                        
+                    except Exception as e:
+                        results['total_errors'] += 1
+                        results['errors'].append(f"Error processing row {row_index}: {str(e)}")
+
+                return Response(results, status=status.HTTP_201_CREATED)
+
+            except Exception as e:
+                return Response({"detail": f"Error reading XLSX file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        elif file.name.endswith('.xls'):
+            try:
+                workbook = xlrd.open_workbook(file_contents=file.read())
+                sheet = workbook.sheet_by_index(0)
+                headers = [cell.value for cell in sheet.row(0)]
+                results = {
+                    'created_users': [],
+                    'total_created': 0,
+                    'total_errors': 0,
+                    'errors': []
+                }
+
+                for row_index in range(1, sheet.nrows):
+                    row = sheet.row_values(row_index)
+                    row_data = dict(zip(headers, row))
+                    try:
+                        # Validate required fields
+                        required_fields = ['first_name', 'last_name', 'email', 'role']
+                        missing_fields = [field for field in required_fields if field not in row_data or not row_data[field]]
+                        
+                        if missing_fields:
+                            results['total_errors'] += 1
+                            results['errors'].append(f"Row {row_index + 1} missing required fields: {', '.join(missing_fields)}")
+                            continue
+                            
+                        # Generate username from email if not provided
+                        username = row_data.get('username', '')
+                        if not username:
+                            username = row_data['email'].split('@')[0]
+                            
+                            # Check if username exists and append numbers if needed
+                            base_username = username
+                            counter = 1
+                            while User.objects.filter(username=username).exists():
+                                username = f"{base_username}{counter}"
+                                counter += 1
+                                
+                        # Check if user with this email already exists in this company
+                        if User.objects.filter(email=row_data['email'], company=company).exists():
+                            results['total_errors'] += 1
+                            results['errors'].append(f"User with email {row_data['email']} already exists in this company")
+                            continue
+                        
+                        # Generate a random secure password regardless of what was provided
+                        # This ensures security by always using a strong random password
+                        password = generate_random_password(12)
+                        
+                        # Get or create department
+                        department_name = row_data.get('department', 'IT')
+                        department, created = Department.objects.get_or_create(
+                            name=department_name,
+                            company=company,
+                            defaults={'name': department_name, 'company': company}
+                        )
+                        
+                        try:
+                            # Create user object but don't save it yet
+                            user = User(
+                                username=username,
+                                email=row_data['email'],
+                                first_name=row_data['first_name'],
+                                last_name=row_data['last_name'],
+                                role=row_data['role'],
+                                company=company,
+                                department=department
+                            )
+                            
+                            # Generate UUID and company_email_id before saving
+                            if not user.uuid:
+                                user.uuid = uuid.uuid4()
+                            
+                            # Generate a unique company_email_id
+                            company_slug = company.slug if company.slug else str(company.id)
+                            base_id = f"{user.email}:{company_slug}"
+                            
+                            # Add a unique suffix if needed
+                            counter = 0
+                            temp_id = base_id
+                            while User.objects.filter(company_email_id=temp_id).exists():
+                                counter += 1
+                                temp_id = f"{base_id}:{counter}"
+                            
+                            user.company_email_id = temp_id
+                            
+                            # Set the password and save
+                            user.set_password(password)
+                            user.save()
+                            
+                            # Add created user to the results
+                            results['created_users'].append(UserSerializer(user).data)
+                            results['total_created'] += 1
+                            
+                        except Exception as e:
+                            results['total_errors'] += 1
+                            results['errors'].append(f"Error creating user {row_data['email']}: {str(e)}")
+                            continue
+                        
+                    except Exception as e:
+                        results['total_errors'] += 1
+                        results['errors'].append(f"Error processing row {row_index + 1}: {str(e)}")
+
+                return Response(results, status=status.HTTP_201_CREATED)
+
+            except Exception as e:
+                return Response({"detail": f"Error reading XLS file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response(
-                {"detail": "Unsupported file format. Please upload a CSV file."},
+                {"detail": "Unsupported file format. Please upload a CSV, XLS, or XLSX file."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Check required columns
-        required_columns = ['first_name', 'last_name', 'email']
-        for column in required_columns:
-            if column not in df.columns:
-                return Response(
-                    {"detail": f"Missing required column: {column}"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        
-        # Process the data
-        created_users = []
-        errors = []
-        
-        for index, row in df.iterrows():
-            try:
-                # Get required fields
-                first_name = row['first_name']
-                last_name = row['last_name']
-                email = row['email']
-                
-                # Get optional fields with defaults
-                role = row.get('role', 'USER')
-                department_name = row.get('department', 'IT')
-                
-                # Validate role
-                valid_roles = [choice[0] for choice in User.Role.choices]
-                if role not in valid_roles:
-                    role = 'USER'  # Default to USER if invalid
-                
-                # Get or create department
-                department, created = Department.objects.get_or_create(
-                    name=department_name,
-                    company=company,
-                    defaults={'name': department_name, 'company': company}
-                )
-                
-                # Generate username from email
-                username = email.split('@')[0]
-                
-                # Check if username exists and append numbers if needed
-                base_username = username
-                counter = 1
-                while User.objects.filter(username=username).exists():
-                    username = f"{base_username}{counter}"
-                    counter += 1
-                
-                # Check if user with this email already exists
-                if User.objects.filter(email=email).exists():
-                    errors.append(f"User with email {email} already exists")
-                    continue
-                
-                # Create the user
-                user = User.objects.create_user(
-                    username=username,
-                    email=email,
-                    password='ChangeMe123!',  # Default password
-                    first_name=first_name,
-                    last_name=last_name,
-                    role=role,
-                    company=company,
-                    department=department
-                )
-                
-                created_users.append(user)
-            except Exception as e:
-                errors.append(f"Error processing row {index+1}: {str(e)}")
-        
-        # Return the results
-        return Response({
-            "created_users": UserSerializer(created_users, many=True).data,
-            "errors": errors,
-            "total_created": len(created_users),
-            "total_errors": len(errors)
-        }, status=status.HTTP_201_CREATED if created_users else status.HTTP_400_BAD_REQUEST)
 
 class UserDetailView(APIView):
     """
@@ -534,7 +662,6 @@ class UserDetailView(APIView):
             {"detail": "Company context is required."},
             status=status.HTTP_400_BAD_REQUEST
         )
-
 
 class UserDepartmentUpdateView(APIView):
     """

@@ -476,7 +476,7 @@ const EmployeeCourses = () => {
               {campaigns.filter(campaign => !campaign.completed).length === 0 && (
                 <div className="text-center p-8 border-2 border-dashed rounded-lg">
                   <BookOpen className="h-12 w-12 mx-auto text-gray-300 mb-2" />
-                  <h3 className="text-lg font-medium text-gray-800">No Active Courses</h3>
+                  <h3 className="text-lg font-medium text-gray-300">No Active Courses</h3>
                   <p className="text-muted-foreground">You don't have any active courses at the moment.</p>
                 </div>
               )}
@@ -542,7 +542,7 @@ const EmployeeCourses = () => {
             <div className="space-y-6">
               <div className="flex items-center gap-2">
                 <Award className="h-5 w-5 text-yellow-500" />
-                <h2 className="text-xl font-semibold text-gray-800">My Certificates</h2>
+                <h2 className="text-xl font-semibold text-gray-200">My Certificates</h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
