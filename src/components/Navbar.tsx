@@ -34,7 +34,7 @@ const Navbar = () => {
   const getLinkClasses = (path: string) =>
     `flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 w-full ` +
     (isActive(path)
-      ? 'bg-[#56393b] text-secondary font-medium' // active: maroon background, navy text
+      ? 'bg-[#56393b] text-white font-medium' // active: maroon background, white text
       : 'text-gray-300 hover:bg-gray-700 hover:text-white');
   
   // Check if a path is active, considering company context and sub-routes
@@ -62,7 +62,7 @@ const Navbar = () => {
     <>
       {/* Top-right welcome (desktop only) */}
       {isAuthenticated && (
-        <div className="hidden md:flex items-center justify-end md:pl-64 md:px-0 px-6 py-4 text-gray-200 text-sm border-b border-gray-700 space-x-2 bg-secondary">
+        <div className="hidden"> {/* تم إخفاء الشريط العلوي */}
         <div className="flex flex-col items-center leading-snug text-center">
           <span>Welcome back,</span>
           <span className="font-medium">{userName}</span>
