@@ -85,19 +85,12 @@ const Navbar = () => {
       <nav className="bg-secondary text-white md:h-screen md:w-64 md:fixed md:top-0 md:left-0 md:flex md:flex-col md:overflow-y-auto z-40 border-b md:border-b-0 md:border-r border-gray-700 py-4 md:px-0 px-6 w-full">
         <div className="max-w-7xl md:mx-0 mx-auto flex justify-between items-center md:flex-col">
           {/* Logo box */}
-          <div
-            // className="w-full p-6 border-b border-gray-700 flex items-center space-x-3 transition-colors"
-            className="w-full p-6 border-b border-gray-700 flex items-center space-x-3 transition-colors"
-          >
+          <div className="w-full p-4 border-b border-gray-700 flex justify-center items-center">
             <img
-              src="/lovable-uploads/876a553e-d478-4016-a8f0-1580f492ca19.png"
-              alt="CSWORD Logo"
-              className="h-8 w-8"
+              src="/cbulwark-logo-2.png"
+              alt="CBulwark Logo"
+              className="h-12 w-auto"
             />
-            <div>
-              <h2 className="text-white font-bold text-lg leading-none">CSWORD</h2>
-              <p className="text-gray-400 text-xs">Security Platform</p>
-            </div>
           </div>
 
           {/* Desktop menu */}
