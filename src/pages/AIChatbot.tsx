@@ -1,11 +1,26 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChatBot } from 'react-chatbotify';
-import { useTheme } from '@/components/theme-provider';
 import { Button } from '@/components/ui/button';
 import { Send } from 'lucide-react';
 
 const AIChatbot = () => {
-  const { theme } = useTheme();
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Check if dark mode is enabled on the html element
+    const html = document.documentElement;
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(html.classList.contains('dark'));
+    });
+    
+    // Initial check
+    setIsDarkMode(html.classList.contains('dark'));
+    
+    // Observe changes to the class attribute
+    observer.observe(html, { attributes: true, attributeFilter: ['class'] });
+    
+    return () => observer.disconnect();
+  }, []);
 
   const flow = {
     start: {
@@ -25,8 +40,8 @@ const AIChatbot = () => {
       primaryColor: '#56393b',
       secondaryColor: '#3d292a',
       fontFamily: 'Arial, sans-serif',
-      textColor: theme === 'dark' ? '#ffffff' : '#333333',
-      botMessageBg: theme === 'dark' ? '#3d292a' : '#f5f5f5',
+      textColor: isDarkMode ? '#ffffff' : '#333333',
+      botMessageBg: isDarkMode ? '#3d292a' : '#f5f5f5',
       userMessageBg: '#56393b',
       userTextColor: '#ffffff',
     },
@@ -42,10 +57,10 @@ const AIChatbot = () => {
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AI Security Assistant</h1>
-          <p className="text-gray-600 dark:text-gray-300">Ask me anything about cybersecurity or our platform</p>
+      <div className="bg-card text-card-foreground rounded-xl shadow-lg overflow-hidden">
+        <div className="p-6 border-b">
+          <h1 className="text-2xl font-bold">AI Security Assistant</h1>
+          <p className="text-muted-foreground">Ask me anything about cybersecurity or our platform</p>
         </div>
         <div className="p-4 h-[70vh] overflow-y-auto">
           <ChatBot
