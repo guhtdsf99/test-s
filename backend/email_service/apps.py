@@ -16,7 +16,7 @@ class EmailServiceConfig(AppConfig):
         # Do not start scheduler if running manage.py makemigrations, migrate, or test
         # or if it's a Django reload process.
         management_commands = {'makemigrations', 'migrate', 'test'}
-        if any(cmd in sys.argv for cmd in management_commands) or os.environ.get('RUN_MAIN') == 'true':
+        if any(cmd in sys.argv for cmd in management_commands):
             return
 
         run_once = os.environ.get('DJANGO_SCHEDULER_RUN_ONCE')
