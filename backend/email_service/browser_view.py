@@ -75,9 +75,6 @@ def view_email_in_browser(request, email_id):
                 <div class="email-content">
                     {email.content}
                 </div>
-                <div class="tracking-notice">
-                    This email has been viewed and marked as read.
-                </div>
             </div>
             
             <!-- Additional tracking at the end of the body -->
