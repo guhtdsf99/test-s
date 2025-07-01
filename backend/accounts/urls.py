@@ -13,6 +13,7 @@ auth_patterns = [
     path('profile/', views.UserProfileView.as_view(), name='profile'),
     path('users/', views.CompanyListView.as_view(), name='user-list'),
     path('change-password/', views.ChangePasswordView.as_view(), name='change-password'),
+    path('password-reset/', views.PasswordResetRequestView.as_view(), name='password-reset-request'),
     path('users/<slug:company_slug>/reset-password/', UserPasswordResetView.as_view(), name='user-reset-password'),
 ]
 

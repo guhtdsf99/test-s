@@ -63,7 +63,7 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaign }) => {
         <Card className="p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             <FileText className="h-4 w-4" />
-            <span>Email Opens</span>
+            <span>Email Opened</span>
           </div>
           <p className="text-2xl font-bold text-green-600">{campaign.opens}</p>
         </Card>

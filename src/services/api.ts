@@ -6,7 +6,7 @@ const isProduction = window.location.hostname.includes('railway.app');
 // Use the hardcoded production URL if we're in production, otherwise use the environment variable or localhost
 const API_URL = isProduction
   ? 'https://adventurous-magic-production.up.railway.app/api'
-  : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'https://adventurous-magic-production.up.railway.app/api');
+  : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://127.0.0.1:8000/api');
 
 // Get company slug from URL path (e.g., /company-name/dashboard)
 const getCompanySlug = (): string | null => {
@@ -404,6 +404,23 @@ export const authService = {
     } catch (error) {
       console.error('Change password error:', error);
       throw error;
+    }
+  },
+
+  requestPasswordReset: async (email: string): Promise<void> => {
+    const endpoint = `${API_URL}/auth/password-reset/`;
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to request password reset. Please check the email and try again.');
     }
   },
 };

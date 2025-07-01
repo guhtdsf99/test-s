@@ -72,14 +72,6 @@ def view_email_in_browser(request, email_id):
             <div style="background-image: url('{tracking_url}/api/email/mark-read/{email_id}/?uid={tracking_id}&method=css_bg&t={timestamp}');" class="hidden-tracking"></div>
             
             <div class="email-container">
-                <div class="email-header">
-                    <div class="email-subject">{email.subject}</div>
-                    <div class="email-meta">
-                        From: {email.sender.email}<br>
-                        To: {email.recipient.email}<br>
-                        Date: {email.sent_at or email.created_at}
-                    </div>
-                </div>
                 <div class="email-content">
                     {email.content}
                 </div>

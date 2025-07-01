@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -55,7 +54,6 @@ const App = () => (
           
           {/* Global routes */}
           <Route path="/" element={<SelectCompany />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/super-admin" element={<SuperAdminPanel />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
           
@@ -65,6 +63,7 @@ const App = () => (
             
             {/* Public routes */}
             <Route path="login" element={<Login />} />
+            <Route path="reset-password" element={<ResetPassword />} />
             
             {/* Protected routes */}
             {/* Admin-only routes */}

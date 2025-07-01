@@ -335,7 +335,10 @@ const Campaigns = () => {
 
       {/* Campaign Details Modal */}
       <Dialog open={!!selectedCampaign} onOpenChange={() => setSelectedCampaign(null)} modal={false}>
-        <DialogContent className="max-w-4xl w-full p-0">
+        <DialogContent className="w-full sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Campaign Report : {selectedCampaign?.name}</DialogTitle>
+          </DialogHeader>
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#907527]"></div>

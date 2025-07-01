@@ -156,7 +156,7 @@ const Navbar = () => {
             <Link to={getLink("/ai-chatbot")} className={getLinkClasses("/ai-chatbot")}>
               <div className="flex items-center gap-1">
                 <Bot className="h-4 w-4" />
-                <span>AI Assistant</span>
+                <span>Cbulwark AI</span>
               </div>
             </Link>
             

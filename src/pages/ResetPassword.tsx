@@ -1,32 +1,40 @@
-
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Mail, ArrowLeft } from 'lucide-react';
+import { authService } from '@/services/api';
 
 const ResetPassword = () => {
   const { toast } = useToast();
+  const { companySlug } = useParams<{ companySlug?: string }>();
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Simulate API call to request password reset
-    setTimeout(() => {
+
+    try {
+      await authService.requestPasswordReset(email);
       toast({
         title: "Password reset link sent",
         description: "Check your email for password reset instructions",
       });
       setSubmitted(true);
+    } catch (error: any) { 
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -107,7 +115,7 @@ const ResetPassword = () => {
             )}
           </CardContent>
           <CardFooter className="flex justify-center">
-            <Link to="/login" className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+            <Link to={`/${companySlug}/login`} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
               <ArrowLeft className="h-4 w-4" />
               Back to login page
             </Link>

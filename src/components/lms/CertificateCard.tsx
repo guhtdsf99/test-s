@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Award, Download, Eye } from "lucide-react";
 import { format } from 'date-fns';
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import CertificatePreview from './CertificatePreview';
 
@@ -101,6 +101,9 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[550px]">
+            <DialogHeader>
+              <DialogTitle>Certificate of Completion</DialogTitle>
+            </DialogHeader>
             <CertificatePreview 
               courseName={title}
               userName={userName}

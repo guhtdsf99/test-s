@@ -11,6 +11,11 @@ from .serializers import (
     CustomTokenObtainPairSerializer,
     RegisterSerializer
 )
+from django.core.mail import send_mail
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.contrib.auth.tokens import default_token_generator
+from django.conf import settings
 
 User = get_user_model()
 
@@ -172,3 +177,50 @@ class ChangePasswordView(APIView):
         user.save()
         
         return Response({"detail": "Password updated successfully."}, status=status.HTTP_200_OK)
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        email = request.data.get('email')
+        if not email:
+            return Response({'detail': 'Email address is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # To prevent user enumeration, we return a success message even if the user doesn't exist.
+            return Response({'detail': 'If an account with that email exists, a password reset link has been sent.'}, status=status.HTTP_200_OK)
+
+        # Generate token and user ID for the reset link
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+
+        # This link should point to your frontend password reset confirmation page.
+        reset_link = f"{settings.FRONTEND_URL}/reset-password-confirm/{uid}/{token}/"
+
+        # Email content
+        subject = 'Your Password Reset Request'
+        message = (
+            f'Hello {user.first_name},\n\n'
+            f'You requested a password reset for your account. Please click the link below to set a new password:\n\n'
+            f'{reset_link}\n\n'
+            f'This link will expire in 24 hours.\n\n'
+            f'If you did not request this, please ignore this email.\n\n'
+            f'Thank you,\nThe Csword Team'
+        )
+        
+        try:
+            send_mail(
+                subject,
+                message,
+                'noreply@csword.com',
+                [user.email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            print(f"ERROR: Could not send password reset email. {e}")
+            pass
+
+        return Response({'detail': 'If an account with that email exists, a password reset link has been sent.'}, status=status.HTTP_200_OK)

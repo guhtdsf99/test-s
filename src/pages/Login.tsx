@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -162,7 +161,7 @@ const Login = () => {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label htmlFor="password">Password</Label>
-                  <Link to="/reset-password" className="text-xs text-[#907527] hover:underline">
+                  <Link to={`/${companySlug}/reset-password`} className="text-xs text-[#907527] hover:underline">
                     Forgot password?
                   </Link>
                 </div>
