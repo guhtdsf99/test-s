@@ -9,6 +9,7 @@ dj-database-url==2.1.0
 # Skip on Windows + Python 3.12 where no wheel is available to avoid build failure.
 psycopg2-binary==2.9.9; sys_platform != "win32" or python_version < "3.12"
 whitenoise==6.6.0
+honcho==1.1.0
 beautifulsoup4==4.12.2
 Pillow==10.3.0; python_version < "3.13"
 django-apscheduler==0.6.2
