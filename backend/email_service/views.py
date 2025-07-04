@@ -15,6 +15,7 @@ from accounts.models import Email, User, Company, Department # Added Company and
 from django.db.models import Count, Q, Avg, F, ExpressionWrapper, FloatField, Case, When
 from django.db.models.functions import TruncMonth
 from datetime import datetime, timedelta
+from django.utils import timezone
 from .serializers import (CSWordEmailServSerializer, EmailTemplateSerializer, 
                           PhishingCampaignSerializer, PhishingSummaryStatsSerializer,
                           DepartmentPerformanceSerializer, TemporalTrendPointSerializer)
@@ -456,6 +457,7 @@ def list_phishing_campaigns(request):
             phishing_campaign__in=campaigns
         ).values('phishing_campaign').annotate(
             targets_count=Count('id'),
+            sent_count=Count('id', filter=Q(sent=True)),
             opens_count=Count('id', filter=Q(read=True)),
             clicks_count=Count('id', filter=Q(clicked=True))
         )
@@ -470,24 +472,40 @@ def list_phishing_campaigns(request):
         serializer = PhishingCampaignSerializer(campaigns, many=True)
         data = serializer.data
         
+        current_date = timezone.now().date()
         # Add stats to each campaign
         for campaign_data, campaign in zip(data, campaigns):
             stats = stats_dict.get(campaign.id, {
                 'targets_count': 0,
+                'sent_count': 0,
                 'opens_count': 0,
                 'clicks_count': 0
             })
             
             targets = stats['targets_count'] or 0
+            sent_emails = stats['sent_count'] or 0
             opens = stats['opens_count'] or 0
             clicks = stats['clicks_count'] or 0
+
+            status = ''
+            if campaign.end_date < current_date:
+                status = 'Completed'
+            elif campaign.start_date > current_date:
+                status = 'Upcoming'
+            else:
+                if sent_emails > 0:
+                    status = 'Active'
+                else:
+                    status = 'Pending'
             
             campaign_data.update({
                 'targets_count': targets,
+                'sent_count': sent_emails,
                 'opens_count': opens,
                 'clicks_count': clicks,
                 'open_rate': round((opens / targets * 100) if targets > 0 else 0, 2),
                 'click_rate': round((clicks / targets * 100) if targets > 0 else 0, 2),
+                'status': status,
             })
         
         return JsonResponseWithCors(data, safe=False)

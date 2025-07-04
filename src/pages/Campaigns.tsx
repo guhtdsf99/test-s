@@ -65,6 +65,7 @@ const transformCampaign = (campaign: any) => {
     opens_count: campaign.opens_count || 0,
     click_rate: campaign.click_rate || 0,
     open_rate: campaign.open_rate || 0,
+    status: campaign.status || 'Unknown', // Pass status from backend
   };
 };
 
@@ -80,7 +81,7 @@ const Campaigns = () => {
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('campaigns');
+  const [activeTab, setActiveTab] = useState('templates');
 
   // Function to fetch detailed campaign data
   const fetchCampaignDetails = async (campaignId: number) => {
@@ -159,7 +160,7 @@ const Campaigns = () => {
         targets: data.metrics?.total_emails || campaign.targets_count || 0,
         clicks: data.metrics?.clicked || campaign.clicks_count || 0,
         opens: data.metrics?.opened || campaign.opens_count || 0,
-        status: getCampaignStatus(campaign.start_date || data.start_date, campaign.end_date || data.end_date),
+        status: campaign.status, // Use status from the campaign list data
         analytics: {
           emailOpens: data.analytics?.emailOpens?.map((item: any) => ({
             id: item.id,
@@ -186,21 +187,13 @@ const Campaigns = () => {
     }
   };
   
-  // Helper function to determine campaign status
-  const getCampaignStatus = (startDate: string, endDate: string): string => {
-    const now = new Date();
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // End of the day
-    
-    if (now < start) return 'Scheduled';
-    if (now > end) return 'Completed';
-    return 'Active';
-  };
-
   // Fetch campaigns on component mount
   useEffect(() => {
     const fetchCampaigns = async () => {
+      if (!companySlug) {
+        setError('Company slug is required');
+        return;
+      }
       try {
         setIsLoading(true);
         const data = await phishingService.getCampaigns();        
@@ -219,7 +212,7 @@ const Campaigns = () => {
     };
 
     fetchCampaigns();
-  }, [toast, refreshKey]);
+  }, [toast, refreshKey, companySlug]);
 
   // Helper functions for date handling
   const startOfDay = (date: Date | string) => {
@@ -237,29 +230,14 @@ const Campaigns = () => {
   // Filter campaigns by status
   const now = new Date();
   
-  const activeCampaigns = campaigns
-    .filter(campaign => {
-      if (!campaign.start_date || !campaign.end_date) return false;
-      const start = startOfDay(campaign.start_date);
-      const end = endOfDay(campaign.end_date);
-      return now >= start && now <= end;
-    })
-    .map(transformCampaign);
+  const filteredCampaigns = campaigns.map(transformCampaign).filter(
+    (c) => c.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const completedCampaigns = campaigns
-    .filter(campaign => {
-      if (!campaign.end_date) return false;
-      const end = endOfDay(campaign.end_date);
-      return now > end;
-    })
-    .map(transformCampaign);
-
-  const filteredTemplates = searchTerm
-    ? templates.filter(template => 
-        template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        template.category.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : templates;
+  const activeCampaigns = filteredCampaigns.filter(
+    (c) => c.status === 'Active' || c.status === 'Upcoming' || c.status === 'Pending'
+  );
+  const completedCampaigns = filteredCampaigns.filter((c) => c.status === 'Completed');
 
   return (
     <MainLayout>

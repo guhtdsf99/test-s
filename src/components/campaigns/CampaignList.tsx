@@ -24,6 +24,7 @@ export interface Campaign {
   opens_count: number;
   click_rate?: number;
   open_rate?: number;
+  status: string;
 }
 
 interface CampaignListProps {
@@ -32,45 +33,14 @@ interface CampaignListProps {
 }
 
 // Helper functions for date handling
-const startOfDay = (date: Date | string): Date => {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-};
-
-const endOfDay = (date: Date | string): Date => {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
-};
-
-const isValidDate = (dateString: string): boolean => {
-  return !isNaN(Date.parse(dateString));
-};
-
 const formatDate = (dateString: string): string => {
-  if (!isValidDate(dateString)) return 'Invalid date';
+  if (!dateString || isNaN(Date.parse(dateString))) return 'Invalid date';
   try {
     return format(new Date(dateString), 'MMM d, yyyy');
   } catch (error) {
     console.error('Error formatting date:', error);
     return 'Invalid date';
   }
-};
-
-const getCampaignStatus = (startDate: string, endDate: string): string => {
-  const now = new Date();
-  
-  if (!isValidDate(startDate) || !isValidDate(endDate)) {
-    return 'Invalid date';
-  }
-  
-  const start = startOfDay(startDate);
-  const end = endOfDay(endDate);
-  
-  if (now < start) return 'Scheduled';
-  if (now > end) return 'Completed';
-  return 'Active';
 };
 
 const CampaignList: React.FC<CampaignListProps> = ({ campaigns, onSelectCampaign }) => {
@@ -118,16 +88,17 @@ const CampaignList: React.FC<CampaignListProps> = ({ campaigns, onSelectCampaign
               <TableCell>
                 <Badge 
                   variant={
-                    getCampaignStatus(campaign.start_date, campaign.end_date) === 'Active' ? 'default' : 
-                    getCampaignStatus(campaign.start_date, campaign.end_date) === 'Completed' ? 'secondary' : 'outline'
+                    campaign.status === 'Active' ? 'default' :
+                    campaign.status === 'Completed' ? 'secondary' : 'outline'
                   }
                   className={
-                    getCampaignStatus(campaign.start_date, campaign.end_date) === 'Active' ? 'bg-green-100 text-green-800' :
-                    getCampaignStatus(campaign.start_date, campaign.end_date) === 'Completed' ? 'bg-blue-100 text-blue-800' :
-                    'bg-gray-100 text-gray-800'
+                    campaign.status === 'Active' ? 'bg-green-100 text-green-800' :
+                    campaign.status === 'Completed' ? 'bg-blue-100 text-blue-800' :
+                    campaign.status === 'Upcoming' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800' // For Pending and other statuses
                   }
                 >
-                  {getCampaignStatus(campaign.start_date, campaign.end_date)}
+                  {campaign.status}
                 </Badge>
               </TableCell>
               <TableCell>

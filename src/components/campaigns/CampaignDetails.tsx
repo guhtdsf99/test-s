@@ -63,7 +63,7 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaign }) => {
         <Card className="p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             <FileText className="h-4 w-4" />
-            <span>Email Opened</span>
+            <span>Email Reported</span>
           </div>
           <p className="text-2xl font-bold text-green-600">{campaign.opens}</p>
         </Card>
@@ -126,7 +126,7 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaign }) => {
                 <TableHead>Employee</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead>Opened Email</TableHead>
+                <TableHead>Reported Email</TableHead>
                 <TableHead>Clicked Link</TableHead>
               </TableRow>
             </TableHeader>
@@ -139,11 +139,11 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaign }) => {
                   <TableCell>
                     {item.opened ? (
                       <Badge variant="success" className="bg-green-100 text-green-800 hover:bg-green-200">
-                        <CheckCircle className="h-3 w-3 mr-1" /> Opened
+                        <CheckCircle className="h-3 w-3 mr-1" /> Reported
                       </Badge>
                     ) : (
                       <Badge variant="destructive" className="bg-red-100 text-red-800 hover:bg-red-200">
-                        <AlertCircle className="h-3 w-3 mr-1" /> Not Opened
+                        <AlertCircle className="h-3 w-3 mr-1" /> Not Reported
                       </Badge>
                     )}
                   </TableCell>
