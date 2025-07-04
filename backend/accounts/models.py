@@ -4,6 +4,10 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.text import slugify
 from django.utils import timezone
 import uuid
+from datetime import datetime, time
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Department(models.Model):
@@ -126,9 +130,32 @@ class Email(models.Model):
         self.save()
     
     def mark_as_read(self):
-        self.read = True
-        self.save()
-    
+        """ Marks the email as read, if the campaign is still active. """
+        if self.phishing_campaign:
+            campaign = self.phishing_campaign
+            campaign_end_datetime = datetime.combine(campaign.end_date, campaign.end_time or time.max)
+            aware_campaign_end_datetime = timezone.make_aware(campaign_end_datetime, timezone.get_current_timezone())
+
+            if timezone.now() > aware_campaign_end_datetime:
+                logger.info(f"Not marking email {self.id} as read because campaign '{campaign.campaign_name}' has ended.")
+                return
+
+        if not self.read:
+            self.read = True
+            self.save(update_fields=['read'])
+
     def mark_as_clicked(self):
-        self.clicked = True
-        self.save()
+        """ Marks the email as clicked, if the campaign is still active. """
+        if self.phishing_campaign:
+            campaign = self.phishing_campaign
+            campaign_end_datetime = datetime.combine(campaign.end_date, campaign.end_time or time.max)
+            aware_campaign_end_datetime = timezone.make_aware(campaign_end_datetime, timezone.get_current_timezone())
+
+            if timezone.now() > aware_campaign_end_datetime:
+                logger.info(f"Not marking email {self.id} as clicked because campaign '{campaign.campaign_name}' has ended.")
+                return
+
+        if not self.clicked:
+            self.clicked = True
+            self.read = True  # A clicked email is also a read email
+            self.save(update_fields=['clicked', 'read'])

@@ -1,10 +1,11 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
 import logging
 import base64
 import uuid
-from datetime import datetime
+from datetime import datetime, time
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +52,30 @@ def mark_email_read(request, email_id):
         
         # Try to get and update the email
         try:
-            # Get the email from the database
-            email = Email.objects.get(id=email_id)
+            # Get the email from the database, and prefetch the campaign
+            email = Email.objects.select_related('phishing_campaign').get(id=email_id)
             
-            # Mark it as read if it's not already
-            if not email.read:
-                email.mark_as_read()
+            # If the email is part of a campaign, check if the campaign has ended
+            if email.phishing_campaign:
+                campaign = email.phishing_campaign
+                
+                # Combine date and time. Use max time if end_time is not set.
+                campaign_end_datetime = datetime.combine(campaign.end_date, campaign.end_time or time.max)
+                
+                # Make it timezone-aware
+                aware_campaign_end_datetime = timezone.make_aware(campaign_end_datetime, timezone.get_current_timezone())
+
+                # If the current time is past the campaign's end time, do nothing.
+                if timezone.now() > aware_campaign_end_datetime:
+                    logger.info(f"Not marking email {email_id} as read because campaign '{campaign.campaign_name}' ended at {aware_campaign_end_datetime}.")
+                else:
+                    # Mark it as read if it's not already
+                    if not email.read:
+                        email.mark_as_read()
+            else:
+                # If not part of a campaign, mark as read as usual
+                if not email.read:
+                    email.mark_as_read()
             
         except Email.DoesNotExist:
             logger.warning(f"Attempted to mark non-existent email {email_id} as read")
@@ -137,8 +156,27 @@ def mark_email_clicked(request, email_id):
     try:
         from accounts.models import Email
         try:
-            email = Email.objects.get(id=email_id)
-            email.mark_as_clicked()
+            email = Email.objects.select_related('phishing_campaign').get(id=email_id)
+            
+            # If the email is part of a campaign, check if the campaign has ended
+            if email.phishing_campaign:
+                campaign = email.phishing_campaign
+                
+                # Combine date and time. Use max time if end_time is not set.
+                campaign_end_datetime = datetime.combine(campaign.end_date, campaign.end_time or time.max)
+                
+                # Make it timezone-aware
+                aware_campaign_end_datetime = timezone.make_aware(campaign_end_datetime, timezone.get_current_timezone())
+
+                # If the current time is NOT past the campaign's end time, mark as clicked.
+                if timezone.now() <= aware_campaign_end_datetime:
+                    email.mark_as_clicked()
+                else:
+                    logger.info(f"Not marking email {email_id} as clicked because campaign '{campaign.campaign_name}' ended at {aware_campaign_end_datetime}.")
+            else:
+                # If not part of a campaign, mark as clicked as usual
+                email.mark_as_clicked()
+
         except Email.DoesNotExist:
             logger.warning(f"Attempted to mark non-existent email {email_id} as clicked")
         except Exception as e:
