@@ -313,15 +313,15 @@ def create_phishing_campaign_by_slug(request):
         data = request.data
         campaign_name = data.get('campaign_name')
         company_slug = data.get('company_slug')
-        start_date = data.get('start_date')
-        end_date = data.get('end_date')
+        start_date_str = data.get('start_date')
+        end_date_str = data.get('end_date')
 
-        if not all([campaign_name, company_slug, start_date, end_date]):
+        if not all([campaign_name, company_slug, start_date_str, end_date_str]):
             missing_fields = []
             if not campaign_name: missing_fields.append('campaign_name')
             if not company_slug: missing_fields.append('company_slug')
-            if not start_date: missing_fields.append('start_date')
-            if not end_date: missing_fields.append('end_date')
+            if not start_date_str: missing_fields.append('start_date')
+            if not end_date_str: missing_fields.append('end_date')
             return JsonResponseWithCors(
                 {'error': f'Missing required fields: {", ".join(missing_fields)}'},
                 status=400
@@ -336,11 +336,24 @@ def create_phishing_campaign_by_slug(request):
                 status=404
             )
 
+        try:
+            # The frontend sends ISO 8601 format strings. The 'Z' at the end means UTC.
+            # We need to parse them into datetime objects.
+            # Python's fromisoformat doesn't handle 'Z' before 3.11, so we replace it.
+            start_datetime = datetime.fromisoformat(start_date_str.replace('Z', '+00:00'))
+            end_datetime = datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
+        except (ValueError, TypeError):
+            logger.error(f"Invalid date format for start_date or end_date. Received: {start_date_str}, {end_date_str}")
+            return JsonResponseWithCors({'error': 'Invalid date format. Use ISO 8601 format.'}, status=400)
+
+
         campaign = PhishingCampaign.objects.create(
             campaign_name=campaign_name,
             company=company,
-            start_date=start_date,
-            end_date=end_date
+            start_date=start_datetime.date(),
+            end_date=end_datetime.date(),
+            start_time=start_datetime.time(),
+            end_time=end_datetime.time()
         )
         serializer = PhishingCampaignSerializer(campaign)
         return JsonResponseWithCors(serializer.data, status=201)

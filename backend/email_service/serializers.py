@@ -35,12 +35,14 @@ class PhishingCampaignSerializer(serializers.ModelSerializer):
     )
     start_date = serializers.DateField(format='%Y-%m-%d')
     end_date = serializers.DateField(format='%Y-%m-%d')
+    start_time = serializers.TimeField(format='%H:%M:%S', required=False, allow_null=True)
+    end_time = serializers.TimeField(format='%H:%M:%S', required=False, allow_null=True)
 
     class Meta:
         model = PhishingCampaign
         fields = [
             'id', 'campaign_name', 'company', 'company_id', 
-            'start_date', 'end_date', 'created_at', 'updated_at'
+            'start_date', 'end_date', 'start_time', 'end_time', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
 

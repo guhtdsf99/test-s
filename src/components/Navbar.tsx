@@ -111,12 +111,6 @@ const Navbar = () => {
                     <span>Dashboard</span>
                   </div>
                 </Link>
-                <Link to={getLink("/template-editor")} className={getLinkClasses("/template-editor")}>
-                  <div className="flex items-center gap-1">
-                    <FileText className="h-4 w-4" />
-                    <span>Templates</span>
-                  </div>
-                </Link>
                 <Link to={getLink("/campaigns")} className={getLinkClasses("/campaigns")}>
                   <div className="flex items-center gap-1">
                     <Mail className="h-4 w-4" />

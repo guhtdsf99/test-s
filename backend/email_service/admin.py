@@ -55,13 +55,13 @@ class EmailTemplateAdmin(admin.ModelAdmin):
 
 @admin.register(PhishingCampaign)
 class PhishingCampaignAdmin(admin.ModelAdmin):
-    list_display = ('campaign_name', 'company', 'start_date', 'end_date', 'created_at', 'updated_at')
+    list_display = ('campaign_name', 'company', 'start_date', 'end_date', 'start_time', 'end_time', 'created_at', 'updated_at')
     list_filter = ('company',)
     search_fields = ('campaign_name', 'company__name')
     readonly_fields = ('created_at', 'updated_at')
     fieldsets = (
         (None, {
-            'fields': ('campaign_name', 'company', 'start_date', 'end_date')
+            'fields': ('campaign_name', 'company', 'start_date', 'end_date', 'start_time', 'end_time')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),

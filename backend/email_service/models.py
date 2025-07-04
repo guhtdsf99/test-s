@@ -52,6 +52,8 @@ class PhishingCampaign(models.Model):
     company = models.ForeignKey('accounts.Company', on_delete=models.CASCADE, related_name='phishing_campaigns', help_text="Company running this campaign")
     start_date = models.DateField(help_text="Start date of the campaign")
     end_date = models.DateField(help_text="End date of the campaign")
+    start_time = models.TimeField(help_text="Start time for sending emails each day", null=True, blank=True)
+    end_time = models.TimeField(help_text="End time for sending emails each day", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -67,6 +69,10 @@ class PhishingCampaign(models.Model):
         super().clean()
         if self.start_date and self.end_date and self.end_date < self.start_date:
             raise ValidationError({'end_date': 'End date cannot be before the start date.'})
+        if self.end_date == self.start_date:
+            if self.start_time and self.end_time and self.end_time < self.start_time:
+                raise ValidationError({'end_time': 'End time cannot be before the start time.'})
+
         # Optional: Ensure start_date is not in the past if that's a requirement
         # if self.start_date and self.start_date < timezone.now().date():
         #     raise ValidationError({'start_date': 'Start date cannot be in the past.'})

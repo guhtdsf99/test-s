@@ -5,7 +5,7 @@ const isProduction = window.location.hostname.includes('railway.app');
 // Use absolute URL for both production and development
 export const API_BASE_URL = isProduction 
   ? 'https://adventurous-magic-production.up.railway.app/api'
-  : 'https://adventurous-magic-production.up.railway.app/api';
+  : 'http://localhost:8000/api';
 
 export const EMAIL_API_ENDPOINT = `${API_BASE_URL}/email/send/`;
 export const EMAIL_SAVE_API_ENDPOINT = `${API_BASE_URL}/email/save/`;

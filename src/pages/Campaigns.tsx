@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { useToast } from '@/hooks/use-toast';
@@ -68,6 +68,8 @@ const transformCampaign = (campaign: any) => {
   };
 };
 
+const Templates = lazy(() => import('./TemplateEditor'));
+
 const Campaigns = () => {
   const { companySlug } = useParams<{ companySlug: string }>();
   const { toast } = useToast();
@@ -78,6 +80,7 @@ const Campaigns = () => {
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('campaigns');
 
   // Function to fetch detailed campaign data
   const fetchCampaignDetails = async (campaignId: number) => {
@@ -260,13 +263,14 @@ const Campaigns = () => {
 
   return (
     <MainLayout>
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-indigo-400">Phishing Campaigns</h1>
-            <p className="text-indigo-400">Create and manage security awareness campaigns</p>
-          </div>
-          
+    <div className="max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-indigo-400">Phishing Campaigns</h1>
+          <p className="text-indigo-400">Create and manage security awareness campaigns</p>
+        </div>
+        
+        
           <Dialog open={isCreateDialogOpen} onOpenChange={setCreateDialogOpen} modal={false}>
             <DialogTrigger asChild>
               <Button className="bg-[#907527] hover:bg-[#705b1e] mt-4 md:mt-0">
@@ -291,47 +295,62 @@ const Campaigns = () => {
               />
             </DialogContent>
           </Dialog>
-        </div>
-
-        <Tabs defaultValue="active" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="active">Active Campaigns</TabsTrigger>
-            <TabsTrigger value="completed">Completed Campaigns</TabsTrigger>
-          </TabsList>
-          
-          {isLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-            </div>
-          ) : error ? (
-            <div className="text-center py-8 text-red-500">{error}</div>
-          ) : (
-            <>
-              <TabsContent value="active" className="space-y-4 mt-6">
-                {activeCampaigns.length > 0 ? (
-                  <CampaignList 
-                    campaigns={activeCampaigns}
-                    onSelectCampaign={handleSelectCampaign}
-                  />
-                ) : (
-                  <div className="text-center py-8 text-gray-500">No active campaigns found</div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="completed" className="space-y-4 mt-6">
-                {completedCampaigns.length > 0 ? (
-                  <CampaignList 
-                    campaigns={completedCampaigns}
-                    onSelectCampaign={handleSelectCampaign}
-                  />
-                ) : (
-                  <div className="text-center py-8 text-gray-500">No completed campaigns found</div>
-                )}
-              </TabsContent>
-            </>
-          )}
-        </Tabs>
       </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="campaigns">
+          <Tabs defaultValue="active" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="active">Active Campaigns</TabsTrigger>
+              <TabsTrigger value="completed">Completed Campaigns</TabsTrigger>
+            </TabsList>
+            
+            {isLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8 text-red-500">{error}</div>
+            ) : (
+              <>
+                <TabsContent value="active" className="space-y-4 mt-6">
+                  {activeCampaigns.length > 0 ? (
+                    <CampaignList 
+                      campaigns={activeCampaigns}
+                      onSelectCampaign={handleSelectCampaign}
+                    />
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">No active campaigns found</div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="completed" className="space-y-4 mt-6">
+                  {completedCampaigns.length > 0 ? (
+                    <CampaignList 
+                      campaigns={completedCampaigns}
+                      onSelectCampaign={handleSelectCampaign}
+                    />
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">No completed campaigns found</div>
+                  )}
+                </TabsContent>
+              </>
+            )}
+          </Tabs>
+        </TabsContent>
+
+        <TabsContent value="templates">
+          <Suspense fallback={<div>Loading...</div>}>
+            <Templates />
+          </Suspense>
+        </TabsContent>
+      </Tabs>
+    </div>
 
       {/* Campaign Details Modal */}
       <Dialog open={!!selectedCampaign} onOpenChange={() => setSelectedCampaign(null)} modal={false}>

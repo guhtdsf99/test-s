@@ -87,6 +87,8 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
   const [campaignName, setCampaignName] = useState('');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [startHour, setStartHour] = useState('09:00');
+  const [endHour, setEndHour] = useState('17:00');
   const [isSending, setIsSending] = useState(false);
   
   // Get current user from auth context
@@ -285,20 +287,28 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
     e.preventDefault();
     
     // Validate form
-    if (!campaignName || !selectedConfigId || !selectedTemplateId || !startDate || !endDate) {
+    if (!campaignName || !selectedConfigId || !selectedTemplateId || !startDate || !endDate || !startHour || !endHour) {
       toast({
         title: "Missing Required Fields",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields, including dates and times.",
         variant: "destructive"
       });
       return;
     }
     
-    // Validate dates
-    if (startDate > endDate) {
+    // Combine date and time and validate
+    const startDateTime = new Date(startDate);
+    const [startH, startM] = startHour.split(':').map(Number);
+    startDateTime.setHours(startH, startM, 0, 0);
+
+    const endDateTime = new Date(endDate);
+    const [endH, endM] = endHour.split(':').map(Number);
+    endDateTime.setHours(endH, endM, 0, 0);
+
+    if (startDateTime >= endDateTime) {
       toast({
         title: "Invalid Date Range",
-        description: "End date must be after start date",
+        description: "End date and time must be after start date and time.",
         variant: "destructive"
       });
       return;
@@ -359,8 +369,8 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
         body: JSON.stringify({
           campaign_name: campaignName,
           company_slug: companySlug,
-          start_date: format(startDate, 'yyyy-MM-dd'),
-          end_date: format(endDate, 'yyyy-MM-dd'),
+          start_date: startDateTime.toISOString(),
+          end_date: endDateTime.toISOString(),
         }),
       });
 
@@ -387,6 +397,8 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
       setSelectedTemplateId(null);
       setStartDate(undefined);
       setEndDate(undefined);
+      setStartHour('09:00');
+      setEndHour('17:00');
       setTargetType('all');
       setSelectedDepartments([]);
       setSelectedEmployees([]);
@@ -485,70 +497,86 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
       
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="start-date">Start Date <span className="text-red-500">*</span></Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !startDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={startDate}
-                onSelect={setStartDate}
-                initialFocus
-                disabled={(date) => {
-                  // Disable dates before today
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  return date < today;
-                }}
-              />
-            </PopoverContent>
-          </Popover>
+          <Label htmlFor="start-date">Start Date & Time <span className="text-red-500">*</span></Label>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !startDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={setStartDate}
+                  initialFocus
+                  disabled={(date) => {
+                    // Disable dates before today
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    return date < today;
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+            <Input 
+              type="time" 
+              value={startHour} 
+              onChange={(e) => setStartHour(e.target.value)}
+              className="w-auto"
+            />
+          </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="end-date">End Date <span className="text-red-500">*</span></Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !endDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={endDate}
-                onSelect={setEndDate}
-                initialFocus
-                disabled={(date) => {
-                  // Disable dates before start date or today
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  
-                  if (startDate) {
-                    return date < startDate;
-                  }
-                  return date < today;
-                }}
-              />
-            </PopoverContent>
-          </Popover>
+          <Label htmlFor="end-date">End Date & Time <span className="text-red-500">*</span></Label>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !endDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  initialFocus
+                  disabled={(date) => {
+                    // Disable dates before start date or today
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    
+                    if (startDate) {
+                      return date < startDate;
+                    }
+                    return date < today;
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+            <Input 
+              type="time" 
+              value={endHour} 
+              onChange={(e) => setEndHour(e.target.value)}
+              className="w-auto"
+            />
+          </div>
         </div>
       </div>
       
@@ -681,7 +709,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
         </DialogClose>
         <Button 
           onClick={handleCreateCampaign}
-          disabled={isSending || !campaignName || !selectedConfigId || !selectedTemplateId || !startDate || !endDate}
+          disabled={isSending || !campaignName || !selectedConfigId || !selectedTemplateId || !startDate || !endDate || !startHour || !endHour}
         >
           {isSending ? 'Creating...' : 'Create Campaign'}
         </Button>

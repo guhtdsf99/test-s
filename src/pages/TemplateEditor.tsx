@@ -21,7 +21,6 @@ import { Save, ArrowLeft, Code, Type, RefreshCw } from 'lucide-react';
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useIsMobile } from '@/hooks/use-mobile';
-import MainLayout from '@/components/layout/MainLayout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const TemplateEditor = () => {
@@ -474,7 +473,7 @@ const TemplateEditor = () => {
   );
 
   return (
-    <MainLayout>
+    <>
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-2">
@@ -700,7 +699,7 @@ const TemplateEditor = () => {
           )}
         </DialogContent>
       </Dialog>
-    </MainLayout>
+    </>
   );
 };
 

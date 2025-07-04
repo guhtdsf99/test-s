@@ -70,8 +70,6 @@ const App = () => (
             <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin', 'company_admin']} />}>
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="templates" element={<Templates />} />
-              <Route path="template-editor" element={<TemplateEditor />} />
-              <Route path="template-editor/:id" element={<TemplateEditor />} />
               <Route path="campaigns" element={<Campaigns />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="user-management" element={<UserManagement />} />

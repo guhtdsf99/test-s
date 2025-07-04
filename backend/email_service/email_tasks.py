@@ -1,8 +1,9 @@
-import random
 import logging
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.conf import settings
 from bs4 import BeautifulSoup
+from datetime import datetime, time
+from django.utils import timezone
 from .models import CSWordEmailServ
 from accounts.models import Email
 from .email_tracker import add_tracking_pixel, add_link_tracking
@@ -12,15 +13,14 @@ logger = logging.getLogger(__name__)
 def send_queued_email_job():
     selected_email_id_for_logging = 'N/A'
     try:
-        from django.utils import timezone # Ensure timezone is available
+        now = timezone.now()
+        today = now.date()
 
-        today = timezone.now().date()
-
-        # Get all unsent emails that belong to an active campaign,
-        # ordered by the nearest campaign end date, then by email creation date.
+        # Get all unsent emails that belong to a campaign active on the current day.
+        # This is a broad filter; a more precise datetime check will follow.
         eligible_emails = Email.objects.filter(
             sent=False,
-            phishing_campaign__isnull=False,  # Must be part of a campaign
+            phishing_campaign__isnull=False,
             phishing_campaign__start_date__lte=today,
             phishing_campaign__end_date__gte=today
         ).select_related('phishing_campaign').order_by('phishing_campaign__end_date', 'created_at')
@@ -28,8 +28,24 @@ def send_queued_email_job():
         if not eligible_emails.exists():
             return
 
-        # Process eligible emails in order until one is sent successfully
+        # Process eligible emails, performing a precise datetime check for each.
         for selected_email in eligible_emails:
+            campaign = selected_email.phishing_campaign
+
+            # Construct start and end datetimes for precise checking.
+            # Use the beginning or end of the day if a specific time is not set.
+            start_time = campaign.start_time or time.min
+            end_time = campaign.end_time or time.max
+
+            # Combine date and time, then make them timezone-aware.
+            start_datetime = timezone.make_aware(datetime.combine(campaign.start_date, start_time))
+            end_datetime = timezone.make_aware(datetime.combine(campaign.end_date, end_time))
+
+            # Check if the current time is within the campaign's full datetime range.
+            if not (start_datetime <= now <= end_datetime):
+                logger.info(f"Skipping email {selected_email.id} for campaign '{campaign.campaign_name}' because current time {now} is outside the allowed window ({start_datetime} - {end_datetime}).")
+                continue
+
             selected_email_id_for_logging = selected_email.id
             try:
                 # Determine which email configuration to use
@@ -75,7 +91,6 @@ def send_queued_email_job():
                 email_message.send(fail_silently=False)
 
                 selected_email.mark_as_sent()
-                break  # stop loop after first successful send
 
             except Exception as e:
                 logger.error(f"Failed to send email ID {selected_email_id_for_logging}: {str(e)}", exc_info=True)
