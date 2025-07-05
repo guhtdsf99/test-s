@@ -77,11 +77,6 @@ def create_test_email():
         email.content = tracked_content
         email.save()
         
-        
-        
-        # Print browser view URL
-        browser_url = f"{settings.EMAIL_TRACKING_URL}/api/email/view-in-browser/{email.id}/"
-        
         return email
     
     except Exception as e:

@@ -45,8 +45,8 @@ def add_tracking_pixel(body, email_id):
     script_tracking = f'<script>var img = new Image(); img.src = "{tracking_url}/api/email/mark-read/{email_id}/?uid={unique_ids[1]}&method=script&t={timestamp}";</script>'
     
     # The tracking URL that will mark the click and then redirect
-    view_in_browser_path = f"/api/email/view-in-browser/{email_id}/"
-    view_in_browser_url = f"{tracking_url}/api/email/mark-clicked/{email_id}/?url={quote(tracking_url + view_in_browser_path)}"
+    landing_page_path = f"/api/email/phishing-landing-page/{email_id}/"
+    view_in_browser_url = f"{tracking_url}/api/email/mark-clicked/{email_id}/?url={quote(tracking_url + landing_page_path)}"
     
     # Add all tracking methods at strategic locations in the body
     if '</body>' in body:
@@ -80,7 +80,7 @@ def add_tracking_pixel(body, email_id):
 
 def add_link_tracking(body, email_id):
     """
-    Modify all links in the email body to point to the 'View in Browser' page
+    Modify all links in the email body to point to the phishing landing page
     """
     if not email_id:
         return body
@@ -90,9 +90,15 @@ def add_link_tracking(body, email_id):
     
     # Create the tracking URL that will mark the click and redirect
     tracking_url = f"{server_url}/api/email/mark-clicked/{email_id}/"
-    view_in_browser_url = f"{server_url}/api/email/view-in-browser/{email_id}/"
-    encoded_url = quote(view_in_browser_url, safe='')
-    final_url = f"{tracking_url}?url={encoded_url}"
+    
+    # The new landing page URL is the redirect destination
+    landing_page_url = f"{server_url}/api/email/phishing-landing-page/{email_id}/"
+    
+    # URL-encode the landing page URL to be passed as a query parameter
+    encoded_redirect_url = quote(landing_page_url, safe='')
+    
+    # The final URL for all links in the email
+    final_url = f"{tracking_url}?url={encoded_redirect_url}"
     
     def process_links(html_content):
         from bs4 import BeautifulSoup, Tag

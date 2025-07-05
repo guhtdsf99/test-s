@@ -43,6 +43,7 @@ def save_email(request):
         from_email = data.get('from')
         subject = data.get('subject')
         body = data.get('body')
+        landing_content = data.get('landing_content')
         sender_id = data.get('sender_id')
         phishing_campaign_id = data.get('phishing_campaign_id')
         email_service_config_id = data.get('email_service_config_id')
@@ -83,6 +84,7 @@ def save_email(request):
             email_data = {
                 'subject': subject,
                 'content': body,
+                'landing_content': landing_content,
                 'sender': sender,
                 'recipient': recipient,
                 'sent': False,

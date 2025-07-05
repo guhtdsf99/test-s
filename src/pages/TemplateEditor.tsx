@@ -566,38 +566,6 @@ const TemplateEditor = () => {
                         </div>
                       )}
                       
-                      <div className="space-y-2">
-                        <Label>Difficulty</Label>
-                        <div className="flex gap-4">
-                          <label className="flex items-center">
-                            <input
-                              type="radio"
-                              className="h-4 w-4 text-blue-600"
-                              checked={template.difficulty === "easy"}
-                              onChange={() => setTemplate({ ...template, difficulty: "easy" })}
-                            />
-                            <span className="ml-2">Easy</span>
-                          </label>
-                          <label className="flex items-center">
-                            <input
-                              type="radio"
-                              className="h-4 w-4 text-blue-600"
-                              checked={template.difficulty === "medium"}
-                              onChange={() => setTemplate({ ...template, difficulty: "medium" })}
-                            />
-                            <span className="ml-2">Medium</span>
-                          </label>
-                          <label className="flex items-center">
-                            <input
-                              type="radio"
-                              className="h-4 w-4 text-blue-600"
-                              checked={template.difficulty === "hard"}
-                              onChange={() => setTemplate({ ...template, difficulty: "hard" })}
-                            />
-                            <span className="ml-2">Hard</span>
-                          </label>
-                        </div>
-                      </div>
 
                       <div className="space-y-2">
                         <Label htmlFor="subject">Subject</Label>

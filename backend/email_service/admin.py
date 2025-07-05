@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db import models
 from django.utils.safestring import mark_safe
-from .models import CSWordEmailServ, EmailTemplate, PhishingCampaign
+from .models import CSWordEmailServ, EmailTemplate, PhishingCampaign, LandingPageTemplate
 
 @admin.register(CSWordEmailServ)
 class CSWordEmailServAdmin(admin.ModelAdmin):
@@ -33,8 +33,36 @@ class EmailTemplateAdmin(admin.ModelAdmin):
         (None, {
             'fields': ('name', 'subject', 'content', 'content_preview')
         }),
-        ('Classification', {
-            'fields': ('difficulty', 'category')
+        ('Availability', {
+            'fields': ('company', 'is_global')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def content_preview(self, obj):
+        """Display a preview of the HTML content"""
+        if obj.content:
+            return mark_safe(f'<div style="padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9;">{obj.content}</div>')
+        return "No content"
+    content_preview.short_description = 'Content Preview'
+
+
+@admin.register(LandingPageTemplate)
+class LandingPageTemplateAdmin(admin.ModelAdmin):
+    list_display = ('name', 'company', 'is_global', 'created_at', 'updated_at')
+    list_filter = ('is_global', 'company')
+    search_fields = ('name', 'content', 'company__name')
+    readonly_fields = ('created_at', 'updated_at', 'content_preview')
+    formfield_overrides = {
+        models.TextField: {'widget': admin.widgets.AdminTextareaWidget(attrs={'rows': 15})},
+    }
+    
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'content', 'content_preview')
         }),
         ('Availability', {
             'fields': ('company', 'is_global')

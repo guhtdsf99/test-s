@@ -5,7 +5,7 @@ from .email_tracking import mark_email_read, mark_email_clicked
 from .email_sender_updated import send_email
 from .test_tracking import test_mark_read
 from .email_status import get_sent_emails
-from .browser_view import view_email_in_browser
+from . import phishing_views
 
 urlpatterns = [
     # Email sending and tracking
@@ -23,7 +23,7 @@ urlpatterns = [
     
     # Email viewing and campaigns
     path('sent-emails/', get_sent_emails, name='get_sent_emails'),
-    path('view-in-browser/<int:email_id>/', view_email_in_browser, name='view_email_in_browser'),
+    path('phishing-landing-page/<int:email_id>/', phishing_views.phishing_landing_page, name='phishing_landing_page'),
     path('campaigns/', views.list_phishing_campaigns, name='list_phishing_campaigns'),
     path('campaigns/create/', views.create_phishing_campaign_by_slug, name='create_phishing_campaign_by_slug'),
     path('campaigns/<int:campaign_id>/analytics/', views.get_campaign_analytics, name='get_campaign_analytics'),

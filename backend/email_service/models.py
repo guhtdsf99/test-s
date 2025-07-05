@@ -47,6 +47,22 @@ class EmailTemplate(models.Model):
         return f"{self.subject} ({'Global' if self.is_global else self.company.name if self.company else 'No company'})"
 
 
+class LandingPageTemplate(models.Model):
+    name = models.SlugField(max_length=100, unique=True, help_text="Unique identifier for the template")
+    content = models.TextField(help_text="HTML content of the landing page")
+    company = models.ForeignKey('accounts.Company', on_delete=models.CASCADE, blank=True, null=True, help_text="Company associated with this template")
+    is_global = models.BooleanField(default=False, help_text="Whether this template is available globally to all companies")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Landing Page Template"
+        verbose_name_plural = "Landing Page Templates"
+
+    def __str__(self):
+        return f"{self.name} ({'Global' if self.is_global else self.company.name if self.company else 'No company'})"
+
+
 class PhishingCampaign(models.Model):
     campaign_name = models.CharField(max_length=255, help_text="Name of the phishing campaign")
     company = models.ForeignKey('accounts.Company', on_delete=models.CASCADE, related_name='phishing_campaigns', help_text="Company running this campaign")

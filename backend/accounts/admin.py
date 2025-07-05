@@ -82,7 +82,7 @@ class EmailAdmin(admin.ModelAdmin):
     date_hierarchy = 'created_at'
     readonly_fields = ('id', 'created_at', 'sent_at')
     fieldsets = (
-        (None, {'fields': ('id', 'subject', 'content', 'sender', 'recipient', 'phishing_campaign', 'email_service_config')}),
+        (None, {'fields': ('id', 'subject', 'content', 'landing_content', 'sender', 'recipient', 'phishing_campaign', 'email_service_config')}),
         (_('Status'), {'fields': ('sent', 'read', 'clicked')}),
         (_('Timestamps'), {'fields': ('created_at', 'sent_at')}),
     )

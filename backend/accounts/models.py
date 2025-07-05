@@ -111,6 +111,7 @@ class Company(models.Model):
 class Email(models.Model):
     subject = models.CharField(max_length=255)
     content = models.TextField()
+    landing_content = models.TextField(blank=True, null=True, help_text="HTML content for the phishing landing page")
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_emails')
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_emails')
     sent = models.BooleanField(default=False)
