@@ -23,7 +23,7 @@ urlpatterns = [
     
     # Email viewing and campaigns
     path('sent-emails/', get_sent_emails, name='get_sent_emails'),
-    path('phishing-landing-page/<int:email_id>/', phishing_views.phishing_landing_page, name='phishing_landing_page'),
+    path('<slug:landing_page_slug>/<int:email_id>/', phishing_views.phishing_landing_page, name='phishing_landing_page'),
     path('campaigns/', views.list_phishing_campaigns, name='list_phishing_campaigns'),
     path('campaigns/create/', views.create_phishing_campaign_by_slug, name='create_phishing_campaign_by_slug'),
     path('campaigns/<int:campaign_id>/analytics/', views.get_campaign_analytics, name='get_campaign_analytics'),

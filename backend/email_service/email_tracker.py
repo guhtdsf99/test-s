@@ -4,6 +4,7 @@ import random
 import html
 from urllib.parse import quote
 from django.conf import settings
+from accounts.models import Email # Import the Email model
 import logging
 
 logger = logging.getLogger(__name__)
@@ -84,6 +85,15 @@ def add_link_tracking(body, email_id):
     """
     if not email_id:
         return body
+
+    try:
+        email_instance = Email.objects.get(id=email_id)
+        # Use the dynamic slug from the email instance, or a default if it's not set
+        slug = email_instance.landing_page_slug or 'default-landing-page'
+    except Email.DoesNotExist:
+        # Fallback if the email is not found, though this shouldn't happen in normal flow
+        logger.error(f"Email with id {email_id} not found in add_link_tracking.")
+        slug = 'email-not-found' # This will cause a 404, which is appropriate
         
     # Get the tracking URL from settings
     server_url = settings.EMAIL_TRACKING_URL
@@ -92,7 +102,8 @@ def add_link_tracking(body, email_id):
     tracking_url = f"{server_url}/api/email/mark-clicked/{email_id}/"
     
     # The new landing page URL is the redirect destination
-    landing_page_url = f"{server_url}/api/email/phishing-landing-page/{email_id}/"
+    # THIS IS THE FIX: use the dynamic slug
+    landing_page_url = f"{server_url}/api/email/{slug}/{email_id}/"
     
     # URL-encode the landing page URL to be passed as a query parameter
     encoded_redirect_url = quote(landing_page_url, safe='')

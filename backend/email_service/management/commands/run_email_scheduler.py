@@ -1,7 +1,7 @@
 import logging
 from django.core.management.base import BaseCommand
 from django.conf import settings
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.blocking import BlockingScheduler
 from django_apscheduler.jobstores import DjangoJobStore
 from email_service.email_tasks import send_queued_email_job
 
@@ -11,7 +11,7 @@ class Command(BaseCommand):
     help = "Runs the APScheduler for sending queued emails."
 
     def handle(self, *args, **options):
-        scheduler = BackgroundScheduler(timezone=settings.TIME_ZONE)
+        scheduler = BlockingScheduler(timezone=settings.TIME_ZONE)
         scheduler.add_jobstore(DjangoJobStore(), "default")
 
         scheduler.add_job(
@@ -23,14 +23,8 @@ class Command(BaseCommand):
             replace_existing=True,
         )
         self.stdout.write("Starting scheduler...")
-        scheduler.start()
-        self.stdout.write("Scheduler started.")
 
         try:
-            # Keep the main thread alive, otherwise the script will exit.
-            import time
-            while True:
-                time.sleep(1)
+            scheduler.start()
         except (KeyboardInterrupt, SystemExit):
-            scheduler.shutdown()
             self.stdout.write("Scheduler stopped.")

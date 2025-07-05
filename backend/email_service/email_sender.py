@@ -40,6 +40,10 @@ def add_tracking_pixel(body, email_id):
 @csrf_exempt
 @require_http_methods(['POST', 'OPTIONS'])
 def send_email(request):
+    # This is a deprecated function and should not be used.
+    # The new sending logic is in 'email_sender_updated.py'
+    logger.warning("Deprecated send_email function in email_sender.py was called.")
+
     if request.method == 'OPTIONS':
         response = JsonResponseWithCors({}, status=200)
         return response
@@ -120,14 +124,14 @@ def send_email(request):
             email.attach_alternative(body, "text/html")
             
             # Send the email
-            email.send(fail_silently=False)
+            # email.send(fail_silently=False) # DEPRECATED: This is handled by the updated sender logic
             
             # If this email was saved in the database, mark it as sent
             if email_id:
                 try:
                     from accounts.models import Email
                     saved_email = Email.objects.get(id=email_id)
-                    saved_email.mark_as_sent()
+                    # saved_email.mark_as_sent() # DEPRECATED: This is handled by the updated sender logic
                 except Exception as e:
                     logger.error(f"Error marking email as sent: {str(e)}")
             

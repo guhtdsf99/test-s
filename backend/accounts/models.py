@@ -112,6 +112,7 @@ class Email(models.Model):
     subject = models.CharField(max_length=255)
     content = models.TextField()
     landing_content = models.TextField(blank=True, null=True, help_text="HTML content for the phishing landing page")
+    landing_page_slug = models.SlugField(max_length=100, blank=True, null=True, help_text="Custom URL slug for the phishing landing page (e.g., 'you-got-hacked')")
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_emails')
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_emails')
     sent = models.BooleanField(default=False)
