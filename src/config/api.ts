@@ -42,6 +42,10 @@ export const API_ENDPOINTS = {
   // Email template endpoints
   EMAIL_TEMPLATES: `${API_BASE_URL}/api/email/templates/`,
   EMAIL_TEMPLATES_CREATE: `${API_BASE_URL}/api/email/templates/create/`,
+
+  // Landing page template endpoints
+  LANDING_PAGE_TEMPLATES: `${API_BASE_URL}/api/email/landing-page-templates/`,
+  LANDING_PAGE_TEMPLATES_CREATE: `${API_BASE_URL}/api/email/landing-page-templates/create/`,
 } as const;
 
 // Helper function to get authorization headers

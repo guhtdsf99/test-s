@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import CSWordEmailServ, EmailTemplate, PhishingCampaign
+from .models import CSWordEmailServ, EmailTemplate, LandingPageTemplate, PhishingCampaign
+from accounts.serializers import CompanySerializer
 from accounts.models import Company
 
 class CSWordEmailServSerializer(serializers.ModelSerializer):
@@ -21,6 +22,21 @@ class EmailTemplateSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'subject', 'content', 'company', 'company_name', 
             'is_global', 'difficulty', 'category'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+    
+    def get_company_name(self, obj):
+        return obj.company.name if obj.company else None
+
+
+class LandingPageTemplateSerializer(serializers.ModelSerializer):
+    company_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LandingPageTemplate
+        fields = [
+            'id', 'name', 'slug', 'content', 'company', 'company_name',
+            'is_global'
         ]
         read_only_fields = ['created_at', 'updated_at']
     

@@ -48,7 +48,8 @@ class EmailTemplate(models.Model):
 
 
 class LandingPageTemplate(models.Model):
-    name = models.SlugField(max_length=100, unique=True, help_text="Unique identifier for the template")
+    name = models.CharField(max_length=100, help_text="Name of the landing page template")
+    slug = models.SlugField(max_length=100, help_text="Link to the backend")
     content = models.TextField(help_text="HTML content of the landing page")
     company = models.ForeignKey('accounts.Company', on_delete=models.CASCADE, blank=True, null=True, help_text="Company associated with this template")
     is_global = models.BooleanField(default=False, help_text="Whether this template is available globally to all companies")
@@ -60,7 +61,8 @@ class LandingPageTemplate(models.Model):
         verbose_name_plural = "Landing Page Templates"
 
     def __str__(self):
-        return f"{self.name} ({'Global' if self.is_global else self.company.name if self.company else 'No company'})"
+        company_name = self.company.name if self.company else 'No company'
+        return f"{self.name} ({'Global' if self.is_global else company_name})"
 
 
 class PhishingCampaign(models.Model):

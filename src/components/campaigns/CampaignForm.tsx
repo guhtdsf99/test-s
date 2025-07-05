@@ -9,7 +9,7 @@ import { Search, Plus, X, Calendar as CalendarIcon, Check, Mail } from 'lucide-r
 import { format } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,6 +31,7 @@ import {
   EMAIL_SAVE_API_ENDPOINT,
   EMAIL_CONFIGS_API_ENDPOINT, 
   EMAIL_TEMPLATES_API_ENDPOINT,
+  LANDING_PAGE_TEMPLATES_API_ENDPOINT,
   PHISHING_CAMPAIGN_CREATE_API_ENDPOINT 
 } from "@/config";
 import { useAuth } from "@/contexts/AuthContext";
@@ -63,6 +64,12 @@ interface EmailTemplate {
   name: string;
 }
 
+interface LandingPageTemplate {
+  id: number;
+  name: string;
+  content: string;
+}
+
 interface CampaignFormProps {
   companySlug: string;
   onClose: () => void;
@@ -77,6 +84,11 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
+  const [landingPageTemplates, setLandingPageTemplates] = useState<LandingPageTemplate[]>([]);
+  const [selectedLandingPageId, setSelectedLandingPageId] = useState<number | null>(null);
+  const [isLoadingLandingPages, setIsLoadingLandingPages] = useState(true);
+  const [previewTemplate, setPreviewTemplate] = useState<LandingPageTemplate | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   
   // Form state
   const [targetType, setTargetType] = useState('all');
@@ -118,6 +130,11 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
         const templatesResponse = await fetchWithAuth(EMAIL_TEMPLATES_API_ENDPOINT);
         const templatesData = await templatesResponse.json();
         setEmailTemplates(templatesData);
+
+        // Fetch landing page templates
+        const landingPageTemplatesResponse = await fetchWithAuth(LANDING_PAGE_TEMPLATES_API_ENDPOINT);
+        const landingPageTemplatesData = await landingPageTemplatesResponse.json();
+        setLandingPageTemplates(landingPageTemplatesData);
         
         // Fetch users and departments
         const [users, depts] = await Promise.all([
@@ -140,6 +157,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
       } finally {
         setIsLoading(false);
         setIsLoadingTemplates(false);
+        setIsLoadingLandingPages(false);
       }
     };
     
@@ -171,6 +189,14 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
   // Remove employee from selection
   const removeEmployee = (employeeId: string) => {
     setSelectedEmployees(prev => prev.filter(emp => emp.id !== employeeId));
+  };
+
+  const handlePreviewLandingPage = () => {
+    const template = landingPageTemplates.find(t => t.id === selectedLandingPageId);
+    if (template) {
+      setPreviewTemplate(template);
+      setIsPreviewOpen(true);
+    }
   };
 
   // Handle form submission
@@ -287,7 +313,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
     e.preventDefault();
     
     // Validate form
-    if (!campaignName || !selectedConfigId || !selectedTemplateId || !startDate || !endDate || !startHour || !endHour) {
+    if (!campaignName || !selectedConfigId || !selectedTemplateId || !selectedLandingPageId || !startDate || !endDate || !startHour || !endHour) {
       toast({
         title: "Missing Required Fields",
         description: "Please fill in all required fields, including dates and times.",
@@ -369,6 +395,8 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
         body: JSON.stringify({
           campaign_name: campaignName,
           company_slug: companySlug,
+          email_template_id: selectedTemplateId,
+          landing_page_template_id: selectedLandingPageId,
           start_date: startDateTime.toISOString(),
           end_date: endDateTime.toISOString(),
         }),
@@ -395,6 +423,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
       setCampaignName('');
       setSelectedConfigId(emailConfigs[0]?.id || null);
       setSelectedTemplateId(null);
+      setSelectedLandingPageId(null);
       setStartDate(undefined);
       setEndDate(undefined);
       setStartHour('09:00');
@@ -459,7 +488,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
       </div>
 
       {/* Template selection and preview side-by-side */}
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Template selector */}
         <div className="space-y-2 flex-1">
           <Label>Email Template <span className="text-red-500">*</span></Label>
@@ -472,7 +501,6 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
             </SelectTrigger>
             <SelectContent>
               {emailTemplates
-                .filter((template) => template.is_global || (currentCompanyId !== null && template.company === currentCompanyId))
                 .map((template) => (
                   <SelectItem key={template.id} value={template.id.toString()}>
                     {template.name || template.subject} 
@@ -482,16 +510,31 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
           </Select>
         </div>
 
-        {/* Preview pane */}
-        <div className="flex-1 space-y-2">
-          <Label>Preview</Label>
-          <div className="border rounded p-4 max-h-96 overflow-y-auto text-sm">
-            {selectedTemplate ? (
-              <div dangerouslySetInnerHTML={{ __html: selectedTemplate.content }} />
-            ) : (
-              <p className="text-muted-foreground">Select a template to preview its content.</p>
-            )}
+        <div className="space-y-2">
+          <Label htmlFor="landing-page-template-select">Landing Page Template <span className="text-red-500">*</span></Label>
+          <div className="flex items-center space-x-2">
+            <Select onValueChange={(value) => setSelectedLandingPageId(Number(value))} value={selectedLandingPageId?.toString()}>
+              <SelectTrigger className="flex-grow"><SelectValue placeholder="Select a landing page" /></SelectTrigger>
+              <SelectContent>
+                {landingPageTemplates.map(template => (
+                  <SelectItem key={template.id} value={template.id.toString()}>{template.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button type="button" variant="outline" size="sm" onClick={handlePreviewLandingPage} disabled={!selectedLandingPageId}>Preview</Button>
           </div>
+        </div>
+      </div>
+
+      {/* Preview pane */}
+      <div className="flex-1 space-y-2">
+        <Label>Preview</Label>
+        <div className="border rounded p-4 max-h-96 overflow-y-auto text-sm">
+          {selectedTemplate ? (
+            <div dangerouslySetInnerHTML={{ __html: selectedTemplate.content }} />
+          ) : (
+            <p className="text-muted-foreground">Select a template to preview its content.</p>
+          )}
         </div>
       </div>
       
@@ -709,11 +752,18 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
         </DialogClose>
         <Button 
           onClick={handleCreateCampaign}
-          disabled={isSending || !campaignName || !selectedConfigId || !selectedTemplateId || !startDate || !endDate || !startHour || !endHour}
+          disabled={isSending || !campaignName || !selectedConfigId || !selectedTemplateId || !selectedLandingPageId || !startDate || !endDate || !startHour || !endHour}
         >
           {isSending ? 'Creating...' : 'Create Campaign'}
         </Button>
       </DialogFooter>
+
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{previewTemplate?.name || 'Template Preview'}</DialogTitle></DialogHeader>
+          {previewTemplate && <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: previewTemplate.content }} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

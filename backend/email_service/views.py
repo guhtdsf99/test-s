@@ -8,8 +8,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from .models import CSWordEmailServ, EmailTemplate, PhishingCampaign
-from .serializers import CSWordEmailServSerializer, EmailTemplateSerializer, PhishingCampaignSerializer
+from .models import CSWordEmailServ, EmailTemplate, PhishingCampaign, LandingPageTemplate
+from .serializers import CSWordEmailServSerializer, EmailTemplateSerializer, PhishingCampaignSerializer, LandingPageTemplateSerializer
 from accounts.models import Company
 from accounts.models import Email, User, Company, Department # Added Company and Department import
 from django.db.models import Count, Q, Avg, F, ExpressionWrapper, FloatField, Case, When
@@ -18,7 +18,8 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from .serializers import (CSWordEmailServSerializer, EmailTemplateSerializer, 
                           PhishingCampaignSerializer, PhishingSummaryStatsSerializer,
-                          DepartmentPerformanceSerializer, TemporalTrendPointSerializer)
+                          DepartmentPerformanceSerializer, TemporalTrendPointSerializer,
+                          LandingPageTemplateSerializer)
 import json
 import logging
 from bs4 import BeautifulSoup
@@ -644,3 +645,120 @@ def phishing_temporal_trend_analytics(request):
         )
 
     return JsonResponseWithCors(trend_data)
+
+@csrf_exempt
+@api_view(['GET', 'OPTIONS'])
+@permission_classes([IsAuthenticated])
+def get_landing_page_templates(request):
+    """
+    API endpoint to get landing page templates based on global flag and company
+    """
+    if request.method == 'OPTIONS':
+        return JsonResponseWithCors({}, status=200)
+        
+    try:
+        company_slug = request.query_params.get('company_slug')
+        
+        if company_slug:
+            try:
+                company = Company.objects.get(slug=company_slug)
+                templates = LandingPageTemplate.objects.filter(
+                    Q(is_global=True) | Q(company=company)
+                ).distinct()
+            except Company.DoesNotExist:
+                templates = LandingPageTemplate.objects.filter(is_global=True)
+        else:
+            if not request.user.is_staff:
+                return JsonResponseWithCors(
+                    {'error': 'Not authorized to view all templates'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            templates = LandingPageTemplate.objects.all()
+            
+        serializer = LandingPageTemplateSerializer(templates, many=True)
+        return JsonResponseWithCors(serializer.data, safe=False)
+        
+    except Exception as e:
+        return JsonResponseWithCors(
+            {'error': str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_landing_page_template(request):
+    """
+    API endpoint to create a new landing page template
+    """
+    try:
+        data = request.data.copy()
+        
+        if 'company' not in data and hasattr(request.user, 'company'):
+            data['company'] = request.user.company.id
+        
+        serializer = LandingPageTemplateSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponseWithCors(
+                serializer.data, 
+                status=status.HTTP_201_CREATED
+            )
+        return JsonResponseWithCors(
+            serializer.errors, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return JsonResponseWithCors(
+            {'error': str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@csrf_exempt
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_landing_page_template(request, template_id):
+    """
+    API endpoint to get, update, or delete a specific landing page template
+    """
+    try:
+        try:
+            template = LandingPageTemplate.objects.get(id=template_id)
+        except LandingPageTemplate.DoesNotExist:
+            return JsonResponseWithCors(
+                {'error': 'Template not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if not request.user.is_staff and template.company != request.user.company:
+            return JsonResponseWithCors(
+                {'error': 'Not authorized to access this template'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if request.method == 'GET':
+            serializer = LandingPageTemplateSerializer(template)
+            return JsonResponseWithCors(serializer.data)
+            
+        elif request.method == 'PUT':
+            serializer = LandingPageTemplateSerializer(template, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return JsonResponseWithCors(serializer.data)
+            return JsonResponseWithCors(
+                serializer.errors, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        elif request.method == 'DELETE':
+            template.delete()
+            return JsonResponseWithCors(
+                {'message': 'Template deleted successfully'}, 
+                status=status.HTTP_204_NO_CONTENT
+            )
+            
+    except Exception as e:
+        return JsonResponseWithCors(
+            {'error': str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

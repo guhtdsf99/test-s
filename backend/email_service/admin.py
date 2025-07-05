@@ -52,9 +52,10 @@ class EmailTemplateAdmin(admin.ModelAdmin):
 
 @admin.register(LandingPageTemplate)
 class LandingPageTemplateAdmin(admin.ModelAdmin):
-    list_display = ('name', 'company', 'is_global', 'created_at', 'updated_at')
+    list_display = ('name', 'slug', 'company', 'is_global', 'created_at', 'updated_at')
     list_filter = ('is_global', 'company')
-    search_fields = ('name', 'content', 'company__name')
+    search_fields = ('name', 'slug', 'content', 'company__name')
+    prepopulated_fields = {'slug': ('name',)}
     readonly_fields = ('created_at', 'updated_at', 'content_preview')
     formfield_overrides = {
         models.TextField: {'widget': admin.widgets.AdminTextareaWidget(attrs={'rows': 15})},
@@ -62,7 +63,7 @@ class LandingPageTemplateAdmin(admin.ModelAdmin):
     
     fieldsets = (
         (None, {
-            'fields': ('name', 'content', 'content_preview')
+            'fields': ('name', 'slug', 'content', 'content_preview')
         }),
         ('Availability', {
             'fields': ('company', 'is_global')

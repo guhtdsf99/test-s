@@ -20,6 +20,11 @@ urlpatterns = [
     path('templates/', views.get_email_templates, name='get_email_templates'),
     path('templates/create/', views.create_email_template, name='create_email_template'),
     path('templates/<int:template_id>/', views.manage_email_template, name='manage_email_template'),
+
+    # Landing Page Template management
+    path('landing-page-templates/', views.get_landing_page_templates, name='get_landing_page_templates'),
+    path('landing-page-templates/create/', views.create_landing_page_template, name='create_landing_page_template'),
+    path('landing-page-templates/<int:template_id>/', views.manage_landing_page_template, name='manage_landing_page_template'),
     
     # Email viewing and campaigns
     path('sent-emails/', get_sent_emails, name='get_sent_emails'),

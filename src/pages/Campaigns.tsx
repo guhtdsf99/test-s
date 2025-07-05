@@ -69,7 +69,8 @@ const transformCampaign = (campaign: any) => {
   };
 };
 
-const Templates = lazy(() => import('./TemplateEditor'));
+const EmailTemplates = lazy(() => import('./TemplateEditor'));
+const LandingPageTemplates = lazy(() => import('./LandingPageTemplateEditor.tsx'));
 
 const Campaigns = () => {
   const { companySlug } = useParams<{ companySlug: string }>();
@@ -81,7 +82,7 @@ const Campaigns = () => {
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('templates');
+  const [activeTab, setActiveTab] = useState('campaigns');
 
   // Function to fetch detailed campaign data
   const fetchCampaignDetails = async (campaignId: number) => {
@@ -241,127 +242,142 @@ const Campaigns = () => {
 
   return (
     <MainLayout>
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-indigo-400">Phishing Campaigns</h1>
-          <p className="text-indigo-400">Create and manage security awareness campaigns</p>
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-indigo-400">Phishing Campaigns</h1>
+            <p className="text-indigo-400">Create and manage security awareness campaigns</p>
+          </div>
+          
+            <Dialog open={isCreateDialogOpen} onOpenChange={setCreateDialogOpen} modal={false}>
+              <DialogTrigger asChild>
+                <Button className="bg-[#907527] hover:bg-[#705b1e] mt-4 md:mt-0">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create New Campaign
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create New Campaign</DialogTitle>
+                </DialogHeader>
+                <CampaignForm 
+                  companySlug={companySlug || ''}
+                  onClose={() => {}} 
+                  onCreate={() => {
+                    setRefreshKey(k=>k+1);
+                    toast({
+                      title: "Campaign Created",
+                      description: "Your new campaign has been created successfully"
+                    });
+                  }} 
+                />
+              </DialogContent>
+            </Dialog>
         </div>
-        
-        
-          <Dialog open={isCreateDialogOpen} onOpenChange={setCreateDialogOpen} modal={false}>
-            <DialogTrigger asChild>
-              <Button className="bg-[#907527] hover:bg-[#705b1e] mt-4 md:mt-0">
-                <Plus className="h-4 w-4 mr-2" />
-                Create New Campaign
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create New Campaign</DialogTitle>
-              </DialogHeader>
-              <CampaignForm 
-                companySlug={companySlug || ''}
-                onClose={() => {}} 
-                onCreate={() => {
-                  setRefreshKey(k=>k+1);
-                  toast({
-                    title: "Campaign Created",
-                    description: "Your new campaign has been created successfully"
-                  });
-                }} 
-              />
-            </DialogContent>
-          </Dialog>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="campaigns">
+              <Mail className="mr-2 h-4 w-4" />
+              Campaigns
+            </TabsTrigger>
+            <TabsTrigger value="templates">
+              <FileText className="mr-2 h-4 w-4" />
+              Email Templates
+            </TabsTrigger>
+            <TabsTrigger value="landing_templates">
+              <FileText className="mr-2 h-4 w-4" />
+              Landing Templates
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="campaigns">
+            <Tabs defaultValue="active" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="active">Active Campaigns</TabsTrigger>
+                <TabsTrigger value="completed">Completed Campaigns</TabsTrigger>
+              </TabsList>
+              
+              {isLoading ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                </div>
+              ) : error ? (
+                <div className="text-center py-8 text-red-500">{error}</div>
+              ) : (
+                <>
+                  <TabsContent value="active" className="space-y-4 mt-6">
+                    {activeCampaigns.length > 0 ? (
+                      <CampaignList 
+                        campaigns={activeCampaigns}
+                        onSelectCampaign={handleSelectCampaign}
+                      />
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">No active campaigns found</div>
+                    )}
+                  </TabsContent>
+                  
+                  <TabsContent value="completed" className="space-y-4 mt-6">
+                    {completedCampaigns.length > 0 ? (
+                      <CampaignList 
+                        campaigns={completedCampaigns}
+                        onSelectCampaign={handleSelectCampaign}
+                      />
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">No completed campaigns found</div>
+                    )}
+                  </TabsContent>
+                </>
+              )}
+            </Tabs>
+          </TabsContent>
+
+          <TabsContent value="templates">
+            <Suspense fallback={<div>Loading Email Templates...</div>}>
+              <EmailTemplates />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="landing_templates">
+            <Suspense fallback={<div>Loading Landing Page Templates...</div>}>
+              <LandingPageTemplates />
+            </Suspense>
+          </TabsContent>
+        </Tabs>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="templates">Email Templates</TabsTrigger>
-          <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="campaigns">
-          <Tabs defaultValue="active" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="active">Active Campaigns</TabsTrigger>
-              <TabsTrigger value="completed">Completed Campaigns</TabsTrigger>
-            </TabsList>
-            
+        {/* Campaign Details Modal */}
+        <Dialog open={!!selectedCampaign} onOpenChange={() => setSelectedCampaign(null)} modal={false}>
+          <DialogContent className="w-full sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Campaign Report : {selectedCampaign?.name}</DialogTitle>
+            </DialogHeader>
             {isLoading ? (
-              <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#907527]"></div>
               </div>
-            ) : error ? (
-              <div className="text-center py-8 text-red-500">{error}</div>
-            ) : (
-              <>
-                <TabsContent value="active" className="space-y-4 mt-6">
-                  {activeCampaigns.length > 0 ? (
-                    <CampaignList 
-                      campaigns={activeCampaigns}
-                      onSelectCampaign={handleSelectCampaign}
-                    />
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">No active campaigns found</div>
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="completed" className="space-y-4 mt-6">
-                  {completedCampaigns.length > 0 ? (
-                    <CampaignList 
-                      campaigns={completedCampaigns}
-                      onSelectCampaign={handleSelectCampaign}
-                    />
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">No completed campaigns found</div>
-                  )}
-                </TabsContent>
-              </>
+            ) : selectedCampaign && (
+              <div className="relative w-full overflow-auto">
+                <CampaignDetails campaign={selectedCampaign} />
+              </div>
             )}
-          </Tabs>
-        </TabsContent>
+          </DialogContent>
+        </Dialog>
 
-        <TabsContent value="templates">
-          <Suspense fallback={<div>Loading...</div>}>
-            <Templates />
-          </Suspense>
-        </TabsContent>
-      </Tabs>
-    </div>
-
-      {/* Campaign Details Modal */}
-      <Dialog open={!!selectedCampaign} onOpenChange={() => setSelectedCampaign(null)} modal={false}>
-        <DialogContent className="w-full sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Campaign Report : {selectedCampaign?.name}</DialogTitle>
-          </DialogHeader>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#907527]"></div>
-            </div>
-          ) : selectedCampaign && (
-            <div className="relative w-full overflow-auto">
-              <CampaignDetails campaign={selectedCampaign} />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Custom overlay to restore the background dimming effect */}
-      {!!selectedCampaign && (
-        <div 
-          className="fixed inset-0 z-40 bg-black/80"
-          onClick={() => setSelectedCampaign(null)}
-        />
-      )}
-      {isCreateDialogOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-black/80"
-          onClick={() => setCreateDialogOpen(false)}
-        />
-      )}
-    </MainLayout>
+        {/* Custom overlay to restore the background dimming effect */}
+        {!!selectedCampaign && (
+          <div 
+            className="fixed inset-0 z-40 bg-black/80"
+            onClick={() => setSelectedCampaign(null)}
+          />
+        )}
+        {isCreateDialogOpen && (
+          <div 
+            className="fixed inset-0 z-40 bg-black/80"
+            onClick={() => setCreateDialogOpen(false)}
+          />
+        )}
+      </MainLayout>
   );
 };
 
