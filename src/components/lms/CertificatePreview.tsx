@@ -3,13 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Award } from "lucide-react";
 
 interface CertificatePreviewProps {
-  courseName?: string;
+  campaignName?: string;
   userName?: string;
   completionDate?: string;
 }
 
 export const CertificatePreview: React.FC<CertificatePreviewProps> = ({
-  courseName = "Security Awareness Training",
+  campaignName = "Security Awareness Training",
   userName = "John Doe",
   completionDate = new Date().toLocaleDateString()
 }) => {
@@ -22,45 +22,31 @@ export const CertificatePreview: React.FC<CertificatePreviewProps> = ({
 
       <Card className="border-2 border-dashed">
         <CardContent className="p-6">
-          <div className="certificate bg-gradient-to-r from-blue-50 to-purple-50 p-8 text-center rounded-lg border border-gray-200">
-            <div className="certificate-header border-b border-gray-200 pb-4 mb-4">
-              <img 
-                src="/lovable-uploads/876a553e-d478-4016-a8f0-1580f492ca19.png" 
-                alt="CSWORD Logo" 
-                className="h-12 mx-auto mb-2" 
-              />
-              <h2 className="text-xl font-bold text-gray-800">CSWORD</h2>
-              <p className="text-gray-600 text-sm">Security Awareness Platform</p>
+          <div className="relative w-full">
+            <img src="/Certificate.png" alt="Certificate of Completion" className="w-full h-auto" />
+            <div
+              className="absolute w-full text-center"
+              style={{ top: '48%', left: '50%', transform: 'translate(-50%, -50%)' }}
+            >
+              <p className="text-3xl font-semibold text-gray-800" style={{ fontFamily: "'Times New Roman', serif" }}>
+                {userName}
+              </p>
             </div>
-            
-            <div className="certificate-body py-6">
-              <h1 className="text-2xl font-bold text-gray-800 mb-1">CERTIFICATE OF COMPLETION</h1>
-              <p className="text-gray-600 text-sm mb-6">This certifies that</p>
-              
-              <p className="text-xl font-bold text-blue-800 mb-6">{userName}</p>
-              
-              <p className="text-gray-600 text-sm mb-2">has successfully completed</p>
-              <p className="text-lg font-semibold text-gray-800 mb-6">{courseName}</p>
-              
-              <p className="text-gray-600 text-sm">Completed on {completionDate}</p>
+            <div
+              className="absolute w-full text-center"
+              style={{ top: '60%', left: '50%', transform: 'translate(-50%, -50%)' }}
+            >
+              <p className="text-xl font-medium" style={{ fontFamily: "'Times New Roman', serif", color: '#8B4513',fontSize:12 }}>
+              who have completed a {campaignName} program, indicating that they have
+              </p>
             </div>
-            
-            <div className="certificate-footer pt-4 mt-4 border-t border-gray-200">
-              <div className="flex justify-center items-center gap-4">
-                <div className="signature">
-                  <div className="h-px w-24 bg-gray-400 mb-1"></div>
-                  <p className="text-xs text-gray-600">Director Signature</p>
-                </div>
-                
-                <div className="seal flex items-center justify-center h-16 w-16 rounded-full border-2 border-gray-300">
-                  <Award className="h-8 w-8 text-yellow-500" />
-                </div>
-                
-                <div className="signature">
-                  <div className="h-px w-24 bg-gray-400 mb-1"></div>
-                  <p className="text-xs text-gray-600">Date</p>
-                </div>
-              </div>
+            <div
+              className="absolute w-full text-center"
+              style={{ top: '65%', left: '50%', transform: 'translate(-50%, -50%)' }}
+            >
+              <p className="text-xl font-medium" style={{ fontFamily: "'Times New Roman', serif", color: '#8B4513' , fontSize:12 }}>
+              fulfilled a certain number of hours of service.
+              </p>
             </div>
           </div>
         </CardContent>

@@ -19,9 +19,11 @@ from collections import defaultdict
 try:
     from io import BytesIO
     from fpdf import FPDF  # type: ignore
+    from PIL import Image, ImageDraw, ImageFont
 except ImportError:  # pragma: no cover
     FPDF = None  # type: ignore
     BytesIO = None  # type: ignore
+    Image = None
 
 
 @staff_member_required
@@ -588,13 +590,16 @@ def company_certificates(request):
 
 
 # ------------------ Certificate Download ------------------
+from django.http import FileResponse
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def download_certificate(request, certificate_id):
     """Generate a simple PDF certificate for the given completed campaign-user relation (certificate)."""
-    # Ensure ReportLab is available
-    if FPDF is None or BytesIO is None:
-        return Response({'error': 'PDF library not installed.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # Ensure PDF libraries are available
+    if FPDF is None or BytesIO is None or Image is None:
+        return Response({'error': 'PDF generation libraries (FPDF, Pillow) not installed.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     try:
         cert = LMSCampaignUser.objects.select_related('user', 'campaign').get(id=certificate_id, completed=True)
@@ -607,35 +612,18 @@ def download_certificate(request, certificate_id):
     if not (is_super_admin or cert.user == user or (user.company and user.company == cert.campaign.company)):
         return Response({'error': 'Not authorized to download this certificate.'}, status=status.HTTP_403_FORBIDDEN)
 
-    pdf = FPDF(orientation='P', unit='pt', format='letter')
+    pdf = FPDF(orientation='L', unit='pt', format='letter')
     pdf.add_page()
 
     page_width = pdf.w
     page_height = pdf.h
-    # Background fill (light gradient substitute)
-    pdf.set_fill_color(245, 248, 255)  # light bluish background
-    pdf.rect(30, 30, page_width-60, page_height-60, 'F')
-    # Border line
-    pdf.set_draw_color(200, 200, 200)
-    pdf.rect(30, 30, page_width-60, page_height-60)
 
-    # Logo image (if exists)
+    # Add background image
     import os
     from django.conf import settings
-    logo_path = os.path.normpath(os.path.join(settings.BASE_DIR, '..', 'public', 'lovable-uploads', '876a553e-d478-4016-a8f0-1580f492ca19.png'))
-    if os.path.exists(logo_path):
-        pdf.image(logo_path, x=(page_width/2)-25, y=60, w=50)
-
-    # Platform name & tagline under logo
-    pdf.set_y(120)
-    pdf.set_font('helvetica', 'B', 18)
-    pdf.cell(0, 24, 'CSWORD', 0, 1, 'C')
-    pdf.set_font('helvetica', '', 12)
-    pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 16, 'Security Awareness Platform', 0, 1, 'C')
-    pdf.set_text_color(0,0,0)
-
-    current_y = pdf.get_y() + 30
+    background_path = os.path.normpath(os.path.join(settings.BASE_DIR, '..', 'public', 'Certificate.png'))
+    if os.path.exists(background_path):
+        pdf.image(background_path, x=0, y=0, w=page_width, h=page_height)
 
     # Helper to strip/replace characters not supported by standard PDF-14 fonts (Latin-1 only)
     def _latin1_safe(txt: str) -> str:
@@ -648,57 +636,46 @@ def download_certificate(request, certificate_id):
     full_name_safe = _latin1_safe(cert.user.get_full_name() or cert.user.username or cert.user.email)
     campaign_name_safe = _latin1_safe(cert.campaign.name)
 
-    # Title
-    pdf.set_y(current_y)
-    pdf.set_font('helvetica', 'B', 24)
-    pdf.cell(0, 30, 'Certificate of Completion', 0, 1, 'C')
-    pdf.set_line_width(0.3)
-    pdf.set_draw_color(210,210,210)
-    pdf.line(60, pdf.get_y(), page_width-60, pdf.get_y())
-    pdf.ln(10)
+    # --- Generate text as a transparent image to make it unselectable ---
+    try:
+        # NOTE: These font paths are for Windows. Adjust for your server's OS if different.
+        font_path_bold = 'C:/Windows/Fonts/timesbd.ttf'
+        font_path_regular = 'C:/Windows/Fonts/times.ttf'
+        user_name_font = ImageFont.truetype(font_path_bold, 30)
+        campaign_font = ImageFont.truetype(font_path_regular, 12)
+    except IOError:
+        return Response({'error': 'Font files not found. Cannot generate certificate text.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # Subtitle
-    pdf.set_font('helvetica', '', 14)
-    pdf.cell(0, 30, 'This certifies that', 0, 1, 'C')
+    # Create a transparent canvas for the text
+    text_image = Image.new('RGBA', (int(page_width), int(page_height)), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(text_image)
 
-    # Recipient name
-    pdf.set_font('helvetica', 'B', 18)
-    pdf.set_text_color(30, 58, 138)
-    pdf.cell(0, 36, full_name_safe, 0, 1, 'C')
-    pdf.set_text_color(0,0,0)
+    # Draw User Name
+    user_name_bbox = draw.textbbox((0,0), full_name_safe, font=user_name_font)
+    user_name_width = user_name_bbox[2] - user_name_bbox[0]
+    user_name_x = (page_width - user_name_width) / 2
+    user_name_y = page_height / 2.2
+    draw.text((user_name_x, user_name_y), full_name_safe, font=user_name_font, fill=(50, 50, 50, 255))
 
-    # Course title
-    pdf.set_font('helvetica', '', 14)
-    pdf.cell(0, 30, 'has successfully completed the', 0, 1, 'C')
+    # Draw Campaign Text
+    line1 = f"who have completed a {campaign_name_safe} program, indicating that they have"
+    line2 = "fulfilled a certain number of hours of service."
+    line1_bbox = draw.textbbox((0,0), line1, font=campaign_font)
+    line1_width = line1_bbox[2] - line1_bbox[0]
+    line2_bbox = draw.textbbox((0,0), line2, font=campaign_font)
+    line2_width = line2_bbox[2] - line2_bbox[0]
+    line1_x = (page_width - line1_width) / 2
+    line2_x = (page_width - line2_width) / 2
+    line1_y = page_height / 1.7
+    line2_y = line1_y + 20
+    draw.text((line1_x, line1_y), line1, font=campaign_font, fill=(148, 119, 80, 255))
+    draw.text((line2_x, line2_y), line2, font=campaign_font, fill=(148, 119, 80, 255))
 
-    pdf.set_font('helvetica', 'B', 16)
-    pdf.set_text_color(50,50,50)
-    pdf.multi_cell(0, 28, campaign_name_safe, 0, 'C')
-    pdf.set_text_color(0,0,0)
-
-    # Completion date
-    completed_date = cert.completed_at.date().strftime('%B %d, %Y') if cert.completed_at else ''
-    pdf.set_font('helvetica', '', 14)
-    pdf.ln(5)
-    pdf.set_x(0)
-    pdf.multi_cell(0, 20, f'Completed on {completed_date}', 0, 'C')
-
-
-
-    # Footer lines (signature placeholders)
-    pdf.ln(30)
-    pdf.set_draw_color(180,180,180)
-    start_x = 120
-    sig_width = 120
-    pdf.line(start_x, pdf.get_y(), start_x+sig_width, pdf.get_y())
-    pdf.line(page_width-start_x-sig_width, pdf.get_y(), page_width-start_x, pdf.get_y())
-
-    pdf.set_y(pdf.get_y()+4)
-    pdf.set_font('helvetica','',10)
-    pdf.cell(start_x)
-    pdf.cell(sig_width,5,'Director Signature',0,0,'C')
-    pdf.cell(page_width-2*start_x-2*sig_width)
-    pdf.cell(sig_width,5,'Date',0,1,'C')
+    # Save the text image to a buffer and overlay it on the PDF
+    with BytesIO() as text_buffer:
+        text_image.save(text_buffer, format='PNG')
+        text_buffer.seek(0)
+        pdf.image(text_buffer, x=0, y=0, w=page_width, h=page_height)
 
     # --- Export PDF bytes (after all drawing) ---
     try:
@@ -715,6 +692,5 @@ def download_certificate(request, certificate_id):
     elif isinstance(pdf_raw, bytearray):
         pdf_raw = bytes(pdf_raw)
 
-    from django.http import FileResponse
-    response = FileResponse(BytesIO(pdf_raw), content_type='application/pdf', as_attachment=True, filename=f'certificate_{certificate_id}.pdf')
+    response = FileResponse(BytesIO(pdf_raw), content_type='application/pdf', filename=f'certificate_{certificate_id}.pdf')
     return response

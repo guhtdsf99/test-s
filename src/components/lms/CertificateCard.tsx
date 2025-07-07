@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { lmsService } from '@/services/api';
 import { 
   Card, 
@@ -92,7 +92,7 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between pt-3 border-t">
+      <CardFooter className="flex justify-end gap-2">
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="ghost" size="sm" className="gap-1">
@@ -105,14 +105,14 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
               <DialogTitle>Certificate of Completion</DialogTitle>
             </DialogHeader>
             <CertificatePreview 
-              courseName={title}
+              campaignName={title}
               userName={userName}
               completionDate={format(completionDate, 'MMMM d, yyyy')}
             />
           </DialogContent>
         </Dialog>
-        
-        <Button variant="outline" size="sm" className="gap-1" onClick={handleDownload}>
+
+        <Button onClick={handleDownload} size="sm" className="gap-1">
           <Download className="h-4 w-4" />
           Download
         </Button>
