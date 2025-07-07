@@ -28,7 +28,6 @@ import {
 import { userService, fetchWithAuth, authService } from "@/services/api";
 import { 
   EMAIL_API_ENDPOINT,
-  EMAIL_SAVE_API_ENDPOINT,
   EMAIL_CONFIGS_API_ENDPOINT, 
   EMAIL_TEMPLATES_API_ENDPOINT,
   LANDING_PAGE_TEMPLATES_API_ENDPOINT,
@@ -245,19 +244,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
           };
           
 
-          const saveResponse = await fetch(EMAIL_SAVE_API_ENDPOINT, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify(savePayload),
-          });
 
-          const saveResponseData = await saveResponse.json();
-          if (!saveResponse.ok) {
-            throw new Error(`Failed to save email: ${saveResponseData.error || saveResponseData.detail || 'Unknown error'}`);
-          }
 
           // 2. Send the email
           const sendPayload = {
@@ -265,7 +252,6 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
             from: selectedConfig.host_user,
             subject: selectedTemplate.subject,
             body: personalizedBody,
-            email_id: saveResponseData.email_id,
             phishing_campaign_id: campaignId,
           };
 
@@ -383,6 +369,21 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
       return;
     }
     
+    const campaignData = {
+      campaign_name: campaignName,
+      company_slug: companySlug,
+      start_date: startDateTime.toISOString(),
+      end_date: endDateTime.toISOString(),
+      email_template_id: selectedTemplateId,
+      landing_page_template_id: selectedLandingPageId,
+      email_service_config_id: selectedConfigId,
+      send_to_all: targetType === 'all',
+      recipient_ids: targetType === 'individual' ? selectedEmployees.map(emp => emp.id) : [],
+      department_ids: targetType === 'department' ? selectedDepartments.map(id => parseInt(id)) : [],
+    };
+
+    console.log('Sending campaign data:', campaignData); // DEBUG: Log payload
+
     setIsSending(true);
     
     try {
@@ -392,14 +393,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          campaign_name: campaignName,
-          company_slug: companySlug,
-          email_template_id: selectedTemplateId,
-          landing_page_template_id: selectedLandingPageId,
-          start_date: startDateTime.toISOString(),
-          end_date: endDateTime.toISOString(),
-        }),
+        body: JSON.stringify(campaignData),
       });
 
       if (!campaignResponse.ok) {
@@ -407,8 +401,8 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
         throw new Error(errorData.detail || 'Failed to create campaign');
       }
 
-      const campaignData = await campaignResponse.json();
-      const campaignId = campaignData.id;
+      const campaignDataResponse = await campaignResponse.json();
+      const campaignId = campaignDataResponse.id;
 
       // 2. Send emails to all target users
       await sendEmails(campaignId, targetUsers);

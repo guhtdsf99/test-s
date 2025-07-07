@@ -191,38 +191,43 @@ def create_phishing_campaign_by_slug(request):
         company_slug = data.get('company_slug')
         start_date_str = data.get('start_date')
         end_date_str = data.get('end_date')
+        email_template_id = data.get('email_template_id')
+        landing_page_template_id = data.get('landing_page_template_id')
+        recipient_ids = data.get('recipient_ids', [])
+        department_ids = data.get('department_ids', [])
+        send_to_all = data.get('send_to_all', False)
+        email_service_config_id = data.get('email_service_config_id')
 
-        if not all([campaign_name, company_slug, start_date_str, end_date_str]):
-            missing_fields = []
-            if not campaign_name: missing_fields.append('campaign_name')
-            if not company_slug: missing_fields.append('company_slug')
-            if not start_date_str: missing_fields.append('start_date')
-            if not end_date_str: missing_fields.append('end_date')
-            return JsonResponseWithCors(
-                {'error': f'Missing required fields: {", ".join(missing_fields)}'},
-                status=400
-            )
+        # --- Validation ---
+        required_fields = {
+            'campaign_name': campaign_name,
+            'company_slug': company_slug,
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'email_template_id': email_template_id,
+            'email_service_config_id': email_service_config_id
+        }
+        missing_fields = [key for key, value in required_fields.items() if not value]
+        if missing_fields:
+            return JsonResponseWithCors({'error': f'Missing required fields: {", ".join(missing_fields)}'}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            company = Company.objects.get(slug=company_slug)
-        except Company.DoesNotExist:
-            logger.error(f"Company with slug '{company_slug}' not found.")
-            return JsonResponseWithCors(
-                {'error': f'Company with slug "{company_slug}" not found.'},
-                status=404
-            )
+        if not send_to_all and not recipient_ids and not department_ids:
+            return JsonResponseWithCors({'error': 'No recipients selected. Please select recipients, departments, or choose to send to all.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            # The frontend sends ISO 8601 format strings. The 'Z' at the end means UTC.
-            # We need to parse them into datetime objects.
-            # Python's fromisoformat doesn't handle 'Z' before 3.11, so we replace it.
-            start_datetime = datetime.fromisoformat(start_date_str.replace('Z', '+00:00'))
-            end_datetime = datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
-        except (ValueError, TypeError):
-            logger.error(f"Invalid date format for start_date or end_date. Received: {start_date_str}, {end_date_str}")
-            return JsonResponseWithCors({'error': 'Invalid date format. Use ISO 8601 format.'}, status=400)
+        # --- Fetch objects ---
+        company = Company.objects.get(slug=company_slug)
+        email_template = EmailTemplate.objects.get(id=email_template_id)
+        email_service_config = CSWordEmailServ.objects.get(id=email_service_config_id)
+        
+        landing_page_template = None
+        if landing_page_template_id:
+            landing_page_template = LandingPageTemplate.objects.get(id=landing_page_template_id)
 
+        # --- Date parsing ---
+        start_datetime = datetime.fromisoformat(start_date_str.replace('Z', '+00:00'))
+        end_datetime = datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
 
+        # --- Create Campaign ---
         campaign = PhishingCampaign.objects.create(
             campaign_name=campaign_name,
             company=company,
@@ -231,15 +236,40 @@ def create_phishing_campaign_by_slug(request):
             start_time=start_datetime.time(),
             end_time=end_datetime.time()
         )
-        serializer = PhishingCampaignSerializer(campaign)
-        return JsonResponseWithCors(serializer.data, status=201)
 
-    except json.JSONDecodeError:
-        logger.error("Invalid JSON format for creating campaign.")
-        return JsonResponseWithCors({'error': 'Invalid JSON format'}, status=400)
+        # --- Determine Recipients ---
+        recipients = User.objects.none()
+        if send_to_all:
+            recipients = User.objects.filter(company=company, is_active=True)
+        else:
+            if recipient_ids:
+                recipients = User.objects.filter(company=company, id__in=recipient_ids, is_active=True)
+            if department_ids:
+                users_in_depts = User.objects.filter(company=company, department__id__in=department_ids, is_active=True)
+                recipients = (recipients | users_in_depts).distinct()
+        
+        # --- Create Emails ---
+        for recipient in recipients:
+            Email.objects.create(
+                subject=email_template.subject,
+                content=email_template.content,
+                landing_content=landing_page_template.content if landing_page_template else None,
+                landing_page_slug=landing_page_template.slug if landing_page_template else None,
+                sender=request.user,
+                recipient=recipient,
+                phishing_campaign=campaign,
+                email_service_config=email_service_config
+            )
+
+        serializer = PhishingCampaignSerializer(campaign)
+        return JsonResponseWithCors(serializer.data, status=status.HTTP_201_CREATED)
+
+    except (Company.DoesNotExist, EmailTemplate.DoesNotExist, LandingPageTemplate.DoesNotExist, CSWordEmailServ.DoesNotExist) as e:
+        logger.error(f"Object not found during campaign creation: {e}")
+        return JsonResponseWithCors({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        logger.error(f"Error creating phishing campaign: {str(e)}", exc_info=True)
-        return JsonResponseWithCors({'error': f'Error creating phishing campaign: {str(e)}'}, status=500)
+        logger.error(f"Error creating phishing campaign: {e}", exc_info=True)
+        return JsonResponseWithCors({'error': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { EMAIL_API_ENDPOINT, EMAIL_SAVE_API_ENDPOINT, EMAIL_CONFIGS_API_ENDPOINT, EMAIL_TEMPLATES_API_ENDPOINT, PHISHING_CAMPAIGN_CREATE_API_ENDPOINT } from '@/config';
+import { EMAIL_CONFIGS_API_ENDPOINT, EMAIL_TEMPLATES_API_ENDPOINT, PHISHING_CAMPAIGN_CREATE_API_ENDPOINT } from '@/config';
 import MainLayout from '@/components/layout/MainLayout';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -411,16 +411,21 @@ const Sender = () => {
                 company_slug: companySlug,
                 start_date: startDate || null,
                 end_date: endDate || null,
+                recipients: selectAllUsers ? getAllUserEmails() : [...selectedRecipients, ...getDepartmentUsers(selectedDepartments).map(user => user.email)],
+                sender_id: currentUser?.id,
+                subject: formData.subject,
+                body: formData.body,
+                from: formData.from,
               }),
             });
-            const campaignData = await campaignResponse.json();
+            const campaignResult = await campaignResponse.json();
             if (!campaignResponse.ok) {
-              throw new Error(campaignData.detail || campaignData.error || 'Failed to create campaign');
+              throw new Error(campaignResult.detail || campaignResult.error || 'Failed to create campaign');
             }
-            currentCampaignId = campaignData.id;
+            currentCampaignId = campaignResult.id;
             toast({
               title: 'Campaign Created',
-              description: `Campaign "${campaignData.campaign_name}" created successfully.`,
+              description: 'The phishing campaign and associated emails have been created successfully.',
             });
           } catch (campaignError) {
             console.error('Error creating campaign:', campaignError);
@@ -434,123 +439,8 @@ const Sender = () => {
         }
       }
 
-      // 2. Prepare and send emails
-      let allRecipients: string[] = [];
-      if (selectAllUsers) {
-        allRecipients = getAllUserEmails();
-      } else {
-        const departmentUsers = getDepartmentUsers(selectedDepartments);
-        const departmentEmails = departmentUsers.map(user => user.email);
-        allRecipients = [...new Set([...selectedRecipients, ...departmentEmails])];
-      }
-
-      if (allRecipients.length === 0) {
-        throw new Error('Please select at least one recipient, department, or all users');
-      }
-
-      let csrfTokenForEmail = getCookie('csrftoken');
-      if (!csrfTokenForEmail) {
-        const optionsCsrfResponse = await fetch(EMAIL_API_ENDPOINT, { method: 'OPTIONS', credentials: 'include' });
-        if (!optionsCsrfResponse.ok) throw new Error('Failed to establish secure connection for sending emails.');
-        csrfTokenForEmail = getCookie('csrftoken'); 
-      }
-      if (!csrfTokenForEmail) {
-        throw new Error('CSRF token not found for sending emails. Please refresh and try again.');
-      }
-
-      const successfulSends: string[] = [];
-      const failedSends: { email: string; error: string }[] = [];
-
-      for (const recipient of allRecipients) {
-        try {
-          const recipientUser = users.find(user => user.email === recipient);
-          const recipientName = recipientUser ? `${recipientUser.first_name} ${recipientUser.last_name}` : 'User';
-          let personalizedBody = formData.body.replace(/\{recipient\.name\}/g, recipientName);
-
-          const savePayload: any = {
-            to: recipient,
-            from: formData.from,
-            subject: formData.subject,
-            body: personalizedBody,
-            sender_id: currentUser?.id,
-          };
-          if (currentCampaignId) {
-            savePayload.phishing_campaign_id = currentCampaignId;
-          }
-
-          const saveResponse = await fetch(EMAIL_SAVE_API_ENDPOINT, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfTokenForEmail,
-              'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'include',
-            body: JSON.stringify(savePayload),
-          });
-          const saveResponseData = await saveResponse.json();
-          if (!saveResponse.ok) {
-            throw new Error(`Failed to save email: ${saveResponseData.error || saveResponseData.detail || 'Unknown error'}`);
-          }
-
-          const emailId = saveResponseData.email_id;
-          const sendPayload: any = {
-            to: recipient,
-            from: formData.from,
-            subject: formData.subject,
-            body: personalizedBody,
-            email_id: emailId,
-          };
-          
-          // Include campaign ID in both save and send payloads
-          if (currentCampaignId) {
-            sendPayload.phishing_campaign_id = currentCampaignId;
-          }
-          
-          const sendResponse = await fetchWithAuth(EMAIL_API_ENDPOINT, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfTokenForEmail,
-              'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'include',
-            body: JSON.stringify(sendPayload),
-          });
-          const sendResponseData = await sendResponse.json();
-          if (!sendResponse.ok) {
-            failedSends.push({ email: recipient, error: sendResponseData.error || sendResponseData.detail || 'Unknown error' });
-          } else {
-            successfulSends.push(recipient);
-          }
-        } catch (error) {
-          failedSends.push({ email: recipient, error: error instanceof Error ? error.message : 'Unknown error during individual email processing' });
-        }
-      }
-
-      // 3. Show results and reset form
-      if (failedSends.length === 0 && successfulSends.length > 0) {
-        toast({
-          title: 'Email(s) Sent Successfully!',
-          description: `Email to ${successfulSends.length} recipient(s) has been queued.`,
-        });
-      } else if (successfulSends.length === 0 && failedSends.length > 0) {
-        throw new Error(`Failed to send email to any recipients. First error: ${failedSends[0].error}`);
-      } else if (failedSends.length > 0) {
-        toast({
-          title: 'Partial Success',
-          description: `Sent to ${successfulSends.length}, failed for ${failedSends.length}. Check console for details.`,
-          variant: 'destructive',
-        });
-      }
-
-      setFormData(prev => ({ ...prev, subject: '', body: '' }));
-      setSelectedRecipients([]);
-      setSelectedDepartments([]);
-      setSelectAllUsers(false);
-      if (campaignName.trim()) { // Access campaignName from state
-        setCampaignName('');    // Reset campaignName state
-      }
+      // Reset form or redirect
+      setCampaignName('');
     } catch (error) {
       console.error('Error sending email:', error);
       let errorMessage = 'Failed to send email';
