@@ -1,13 +1,24 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
+from django.core.validators import FileExtensionValidator
 from django.utils.text import slugify
 from django.utils import timezone
 import uuid
 from datetime import datetime, time
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+
+
+def company_logo_upload_path(instance, filename):
+    # Get the file extension
+    ext = filename.split('.')[-1]
+    # Create a new filename using the company's slug
+    new_filename = f"{instance.slug}.{ext}"
+    # Return the full path
+    return os.path.join('company_logos', new_filename)
 
 
 class Department(models.Model):
@@ -95,6 +106,14 @@ class Company(models.Model):
     slug = models.SlugField(max_length=255, unique=True, help_text="URL-friendly name for company subdirectory")
     description = models.TextField(blank=True)
     number_of_allowed_users = models.IntegerField(default=1)
+    company_logo = models.ImageField(
+        upload_to=company_logo_upload_path, 
+        null=True, 
+        blank=True, 
+        help_text="Company's logo. Allowed formats: jpg, jpeg, png.",
+        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png'])]
+    )
+    color_palette = models.CharField(max_length=255, blank=True, help_text="Comma-separated list of hex color codes, e.g., #FFFFFF,#000000")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

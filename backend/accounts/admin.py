@@ -7,7 +7,7 @@ from email_service.models import PhishingCampaign  # Import PhishingCampaign
 
 @admin.register(Company)
 class CompanyAdmin(admin.ModelAdmin):
-    list_display = ('name', 'number_of_allowed_users', 'created_at', 'updated_at')
+    list_display = ('name', 'number_of_allowed_users', 'company_logo', 'color_palette', 'created_at', 'updated_at')
     search_fields = ('name',)
 
 # Custom form to enforce email uniqueness within a company
