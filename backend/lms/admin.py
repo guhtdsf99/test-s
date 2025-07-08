@@ -70,15 +70,15 @@ class LMSCampaignAdminForm(forms.ModelForm):
 @admin.register(LMSCampaign)
 class LMSCampaignAdmin(admin.ModelAdmin):
     form = LMSCampaignAdminForm
-    list_display = ('name', 'get_courses', 'company', 'start_date', 'end_date', 'created_by', 'created_at')
-    list_filter = ('company', 'courses', 'created_at')
+    list_display = ('name', 'get_courses', 'company', 'start_date', 'end_date', 'created_by', 'created_at', 'policy')
+    list_filter = ('company', 'courses', 'created_at', 'policy')
     search_fields = ('name', 'courses__name', 'company__name')
     inlines = [QuestionSelectInline, LMSCampaignUserInline]
     exclude = ('questions',)  # Exclude questions field since we're using the inline
     filter_horizontal = ('courses',)  # Add this to enable a better UI for selecting multiple courses
     fieldsets = (
         (None, {
-            'fields': ('name', 'company', 'courses', 'created_by')
+            'fields': ('name', 'company', 'courses', 'created_by', 'policy')
         }),
         ('Schedule', {
             'fields': ('start_date', 'end_date'),

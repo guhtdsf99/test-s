@@ -20,6 +20,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import Video from '@/components/Video';
 import LmsTrainingResultsChart from '@/components/charts/LmsTrainingResultsChart';
 import { API_ENDPOINTS, getAuthHeaders } from '@/config/api';
+import QuickInsights from '@/components/lms/QuickInsights';
 
 // Interfaces for fetched analytics data
 interface SummaryStats {
@@ -530,6 +531,8 @@ const Dashboard = () => {
                   <LmsTrainingResultsChart />
                 </CardContent>
               </Card>
+              <QuickInsights />
+
             </TabsContent>
           </Tabs>
         </div>

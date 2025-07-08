@@ -14,4 +14,5 @@ urlpatterns = [
     path('api/lms/certificates/', views.company_certificates, name='lms_company_certificates'),
     path('api/lms/analytics/training-results/', views.lms_training_results, name='lms_training_results'),
     path('api/lms/certificates/<int:certificate_id>/download/', views.download_certificate, name='lms_certificate_download'),
+    path('api/lms/quick-insights/', views.QuickInsightsView.as_view(), name='quick-insights'),
 ]

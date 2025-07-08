@@ -6,7 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from courses.models import Course, Question
-from accounts.models import Company, User
+from accounts.models import Company, User, Email
+from email_service.models import PhishingCampaign
 from .models import LMSCampaign, LMSCampaignUser, UserCourseProgress
 from email_service.password_reset import generate_random_password, send_password_reset_email
 from email_service.campaign_reminder import send_campaign_reminder_email
@@ -694,3 +695,95 @@ def download_certificate(request, certificate_id):
 
     response = FileResponse(BytesIO(pdf_raw), content_type='application/pdf', filename=f'certificate_{certificate_id}.pdf')
     return response
+
+
+from django.utils import timezone
+from datetime import timedelta
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
+class QuickInsightsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        if not user.company:
+            return Response({"error": "User is not associated with a company"}, status=400)
+
+        company = user.company
+        total_users = User.objects.filter(company=company).count()
+
+        # 1. Reporting Rate
+        now = timezone.now()
+        # Get phishing campaigns that started in the last 30 days
+        current_campaigns = PhishingCampaign.objects.filter(
+            company=company,
+            start_date__gte=now - timedelta(days=30),
+            start_date__lte=now
+        )
+
+        # Get phishing campaigns that started in the 30 days prior to that
+        previous_campaigns = PhishingCampaign.objects.filter(
+            company=company,
+            start_date__gte=now - timedelta(days=60),
+            start_date__lt=now - timedelta(days=30)
+        )
+
+        # Emails sent in the current period's campaigns
+        current_emails_sent = Email.objects.filter(phishing_campaign__in=current_campaigns).count()
+        # Emails read (reported) in the current period's campaigns
+        current_reports = Email.objects.filter(phishing_campaign__in=current_campaigns, read=True).count()
+
+        # Emails sent in the previous period's campaigns
+        previous_emails_sent = Email.objects.filter(phishing_campaign__in=previous_campaigns).count()
+        # Emails read (reported) in the previous period's campaigns
+        previous_reports = Email.objects.filter(phishing_campaign__in=previous_campaigns, read=True).count()
+
+        # Calculate reporting rates for each period
+        current_reporting_rate = (current_reports / current_emails_sent * 100) if current_emails_sent > 0 else 0
+        previous_reporting_rate = (previous_reports / previous_emails_sent * 100) if previous_emails_sent > 0 else 0
+
+        # Calculate the percentage change between the two periods
+        if previous_reporting_rate > 0:
+            reporting_rate_change = ((current_reporting_rate - previous_reporting_rate) / previous_reporting_rate) * 100
+        else:
+            reporting_rate_change = current_reporting_rate  # Show current rate if no previous data
+
+        # 2. Security Awareness
+        trained_users = LMSCampaignUser.objects.filter(
+            campaign__company=company,
+            completed=True
+        ).values('user').distinct().count()
+
+        if total_users > 0:
+            security_awareness = (trained_users / total_users) * 100
+        else:
+            security_awareness = 0
+
+        # 3. Policy Adherence
+        policy_campaigns = LMSCampaign.objects.filter(company=company, policy=True)
+
+        if policy_campaigns.exists():
+            # Get all user assignments for these policy campaigns
+            policy_campaign_users = LMSCampaignUser.objects.filter(campaign__in=policy_campaigns)
+            
+            # Count total unique users assigned to policy campaigns
+            total_assigned_policy_users = policy_campaign_users.values('user').distinct().count()
+
+            if total_assigned_policy_users > 0:
+                # Count unique users who have completed the policy campaigns
+                completed_policy_users = policy_campaign_users.filter(completed=True).values('user').distinct().count()
+                policy_adherence = (completed_policy_users / total_assigned_policy_users) * 100
+            else:
+                policy_adherence = 100  # No users assigned to policy campaigns, so 100% adherence
+        else:
+            policy_adherence = 100  # No active policy campaigns, so 100% adherence
+
+        data = {
+            'reporting_rate': round(reporting_rate_change, 2),
+            'security_awareness': round(security_awareness, 2),
+            'policy_adherence': round(policy_adherence, 2),
+        }
+
+        return Response(data)

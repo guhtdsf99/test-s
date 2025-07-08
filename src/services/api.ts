@@ -122,6 +122,12 @@ export interface BulkUploadResponse {
   total_errors: number;
 }
 
+export interface QuickInsightsData {
+  reporting_rate: number;
+  security_awareness: number;
+  policy_adherence: number;
+}
+
 export const companyService = {
   getCompanies: async (): Promise<Company[]> => {
     try {
@@ -792,87 +798,6 @@ export const userService = {
   },
 };
 
-// Add an interceptor to handle token refresh
-export const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
-  const redirectToLogin = () => {
-    const slug = getCompanySlug() || localStorage.getItem('companySlug') || '';
-    authService.logout();
-    window.location.href = slug ? `/${slug}/login` : '/login';
-  };
-
-  const token = localStorage.getItem('token');
-  
-  if (!token) {
-    redirectToLogin();
-    throw new Error('No authentication token found');
-  }
-
-  // Ensure the URL is absolute by checking if it starts with http or https
-  // If it doesn't, prepend the API_URL (without the /api part)
-  const absoluteUrl = url.startsWith('http') 
-    ? url 
-    : url.startsWith('/api') 
-      ? `https://phishaware-backend-production.up.railway.app${url}` 
-      : `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
-  
-  const headers = {
-    ...options.headers,
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': options.headers?.['Content-Type'] || 'application/json',
-  };
-
-  try {
-    const response = await fetch(absoluteUrl, {
-      ...options,
-      headers,
-    });
-
-    if (response.status === 401) {
-      // Token expired, try to refresh
-      try {
-        const newToken = await authService.refreshToken();
-        if (!newToken) {
-          throw new Error('Failed to refresh token');
-        }
-        
-        // Update the authorization header with the new token
-        const newHeaders = {
-          ...headers,
-          'Authorization': `Bearer ${newToken}`
-        };
-        
-        // Retry the request with the new token
-        const retryResponse = await fetch(absoluteUrl, {
-          ...options,
-          headers: newHeaders,
-        });
-        
-        if (retryResponse.status === 401) {
-          // If we still get 401 after refresh, force logout
-          redirectToLogin();
-          throw new Error('Session expired after token refresh');
-        }
-        
-        return retryResponse;
-      } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError);
-        // Refresh failed, force logout and redirect to login
-        redirectToLogin();
-        throw new Error('Session expired. Please login again.');
-      }
-    }
-
-    return response;
-  } catch (error) {
-    console.error('Fetch with auth error:', error, 'URL:', absoluteUrl);
-    if (error instanceof Error && error.message.includes('Failed to fetch')) {
-      // Network error or server down
-      console.error('Network error - please check your connection');
-    }
-    throw error;
-  }
-};
-
 // LMS Campaign service
 export const phishingService = {
   // Get all phishing campaigns for the current company
@@ -891,6 +816,14 @@ export const phishingService = {
 };
 
 export const lmsService = {
+  async getQuickInsights(): Promise<QuickInsightsData> {
+    const response = await fetchWithAuth(`${API_URL}/lms/quick-insights/`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch quick insights');
+    }
+    return await response.json();
+  },
+
   // Get campaigns assigned to the current user
   getUserCampaigns: async () => {
     try {
@@ -1032,6 +965,87 @@ export const lmsService = {
       throw error;
     }
   },
+};
+
+// Add an interceptor to handle token refresh
+export const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  const redirectToLogin = () => {
+    const slug = getCompanySlug() || localStorage.getItem('companySlug') || '';
+    authService.logout();
+    window.location.href = slug ? `/${slug}/login` : '/login';
+  };
+
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    redirectToLogin();
+    throw new Error('No authentication token found');
+  }
+
+  // Ensure the URL is absolute by checking if it starts with http or https
+  // If it doesn't, prepend the API_URL (without the /api part)
+  const absoluteUrl = url.startsWith('http') 
+    ? url 
+    : url.startsWith('/api') 
+      ? `https://phishaware-backend-production.up.railway.app${url}` 
+      : `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+  
+  const headers = {
+    ...options.headers,
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': options.headers?.['Content-Type'] || 'application/json',
+  };
+
+  try {
+    const response = await fetch(absoluteUrl, {
+      ...options,
+      headers,
+    });
+
+    if (response.status === 401) {
+      // Token expired, try to refresh
+      try {
+        const newToken = await authService.refreshToken();
+        if (!newToken) {
+          throw new Error('Failed to refresh token');
+        }
+        
+        // Update the authorization header with the new token
+        const newHeaders = {
+          ...headers,
+          'Authorization': `Bearer ${newToken}`
+        };
+        
+        // Retry the request with the new token
+        const retryResponse = await fetch(absoluteUrl, {
+          ...options,
+          headers: newHeaders,
+        });
+        
+        if (retryResponse.status === 401) {
+          // If we still get 401 after refresh, force logout
+          redirectToLogin();
+          throw new Error('Session expired after token refresh');
+        }
+        
+        return retryResponse;
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+        // Refresh failed, force logout and redirect to login
+        redirectToLogin();
+        throw new Error('Session expired. Please login again.');
+      }
+    }
+
+    return response;
+  } catch (error) {
+    console.error('Fetch with auth error:', error, 'URL:', absoluteUrl);
+    if (error instanceof Error && error.message.includes('Failed to fetch')) {
+      // Network error or server down
+      console.error('Network error - please check your connection');
+    }
+    throw error;
+  }
 };
 
 export default authService;
