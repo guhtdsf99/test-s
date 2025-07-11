@@ -1,11 +1,12 @@
 // API Configuration
-// Determine if we're in production environment
+// Determine if we're in production environments
 const isProduction = window.location.hostname.includes('railway.app');
 
 // Use absolute URL for both production and development
-export const API_BASE_URL = isProduction 
-  ? 'https://adventurous-magic-production.up.railway.app/api'
-  : 'http://localhost:8000/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL
+    ? `${import.meta.env.VITE_API_URL}/api`
+    : 'http://localhost:8000/api';
 
 export const EMAIL_API_ENDPOINT = `${API_BASE_URL}/email/send/`;
 export const EMAIL_SAVE_API_ENDPOINT = `${API_BASE_URL}/email/save/`;
