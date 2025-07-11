@@ -125,7 +125,7 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaign }) => {
               <TableRow>
                 <TableHead>Employee</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Department</TableHead>
+                <TableHead>Groups</TableHead>
                 <TableHead>Reported Email</TableHead>
                 <TableHead>Clicked Link</TableHead>
               </TableRow>

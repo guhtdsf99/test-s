@@ -94,7 +94,20 @@ const LandingPageTemplateEditor = () => {
     const selected = templatesData.find(t => t.id?.toString() === templateId);
     if (selected) {
       if (selected.is_global) {
-        toast({ title: 'Read-only', description: 'Global templates cannot be edited.' });
+        // Prefill a new template based on the global one so it can be customised
+        setTemplateMode('new');
+        setIsPreviewOpen(false);
+        setPreviewTemplate(null);
+        setTemplate({
+          id: '',
+          name: selected.name || '',
+          slug: selected.slug || '',
+          content: selected.content || '',
+        });
+        toast({
+          title: 'Global template copied',
+          description: 'You are now creating a new landing page template based on the selected global template. Give it a unique name.',
+        });
         return;
       }
       setTemplate({
@@ -113,8 +126,16 @@ const LandingPageTemplateEditor = () => {
     } else {
       const selected = templatesData?.find(t => t.id?.toString() === value);
       if (selected?.is_global) {
-        setPreviewTemplate(selected);
-        setIsPreviewOpen(true);
+        // Switch to new mode with copied content
+        setTemplateMode('new');
+        setIsPreviewOpen(false);
+        setPreviewTemplate(null);
+        setTemplate({
+          id: '',
+          name: selected.name || '',
+          slug: selected.slug || '',
+          content: selected.content || '',
+        });
         return;
       }
       loadTemplate(value);
@@ -125,6 +146,20 @@ const LandingPageTemplateEditor = () => {
   const handleSaveTemplate = async () => {
     try {
       const isNew = templateMode === 'new' || !template.id;
+
+      // Prevent duplicate names when creating a new template
+      if (isNew) {
+        const duplicate = templatesData.some(t => t.name.trim().toLowerCase() === template.name.trim().toLowerCase());
+        if (duplicate) {
+          toast({
+            title: 'Duplicate name',
+            description: 'A landing page template with that name already exists. Please choose a different name.',
+            variant: 'destructive'
+          });
+          return;
+        }
+      }
+
       const url = isNew 
         ? API_ENDPOINTS.LANDING_PAGE_TEMPLATES_CREATE 
         : `${API_ENDPOINTS.LANDING_PAGE_TEMPLATES}${template.id}/`;
@@ -182,8 +217,13 @@ const LandingPageTemplateEditor = () => {
       <CardHeader className="border-b border-gray-100 bg-gray-50">
         <CardTitle className="text-lg">Page Preview</CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
-        <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: template.content }} />
+      <CardContent className="p-0">
+        <iframe
+          title="Landing page preview"
+          srcDoc={template.content}
+          sandbox="allow-same-origin"
+          className="w-full h-[500px] border-0 rounded-b-md"
+        />
       </CardContent>
     </Card>
   );
@@ -211,7 +251,7 @@ const LandingPageTemplateEditor = () => {
                       <div className="space-y-2">
                         <Label>Template Mode</Label>
                         <div className="flex space-x-4">
-                          <Button type="button" variant={templateMode === 'new' ? 'default' : 'outline'} onClick={() => { setTemplate({id: '', name: '', slug: '', content: ''}); setTemplateMode('new'); }} className="flex-1">New Template</Button>
+                          <Button type="button" variant={templateMode === 'new' ? 'default' : 'outline'} onClick={() => { /* keep current template so content persists */ setTemplateMode('new'); }} className="flex-1">New Template</Button>
                           <Button type="button" variant={templateMode === 'existing' ? 'default' : 'outline'} onClick={() => setTemplateMode('existing')} className="flex-1">Edit Existing</Button>
                         </div>
                       </div>
@@ -220,12 +260,12 @@ const LandingPageTemplateEditor = () => {
                         <div className="space-y-2">
                           <Label>Select Template</Label>
                           <Select onValueChange={handleTemplateChange} value={template.id || undefined}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose a template to edit" />
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="select a template" />
                             </SelectTrigger>
                             <SelectContent>
                               {templateOptions.map(option => (
-                                <SelectItem key={option.value} value={option.value} disabled={option.isGlobal}>
+                                <SelectItem key={option.value} value={option.value} className={option.isGlobal ? 'opacity-50' : ''}>
                                   {option.label}
                                 </SelectItem>
                               ))}
@@ -234,16 +274,18 @@ const LandingPageTemplateEditor = () => {
                         </div>
                       )}
 
-                      <div className="space-y-2">
-                        <Label htmlFor="template-name">Template Name</Label>
-                        <Input
-                          id="template-name"
-                          value={template.name}
-                          onChange={(e) => setTemplate(t => ({ ...t, name: e.target.value }))}
-                          placeholder="e.g., Quarterly Update"
-                        />
-                      </div>
+                      {/* Template name only when creating / duplicating */}
+                       <div className="space-y-2" style={{ display: templateMode === 'new' ? 'block' : 'none' }}>
+                         <Label htmlFor="template-name">Template Name</Label>
+                         <Input
+                           id="template-name"
+                           value={template.name}
+                           onChange={(e) => setTemplate(t => ({ ...t, name: e.target.value }))}
+                           placeholder="e.g., Quarterly Update"
+                         />
+                       </div>
 
+                      {/* Slug always visible so user can adjust */}
                       <div className="space-y-2">
                         <Label htmlFor="template-slug">Slug</Label>
                         <Input
@@ -264,14 +306,18 @@ const LandingPageTemplateEditor = () => {
                           <Label>Page Content</Label>
                           <ToggleGroup type="single" value={editorMode} onValueChange={value => value && setEditorMode(value as 'html' | 'preview')} className="h-8">
                             <ToggleGroupItem value="html" className="text-xs px-3"><Code className="h-3.5 w-3.5 mr-1" />HTML</ToggleGroupItem>
-                            <ToggleGroupItem value="preview" className="text-xs px-3"><Type className="h-3.5 w-3.5 mr-1" />Preview</ToggleGroupItem>
                           </ToggleGroup>
                         </div>
                         
                         {editorMode === 'html' ? (
                           <Textarea className="w-full min-h-[400px] p-3 font-mono text-sm" value={template.content} onChange={e => setTemplate({ ...template, content: e.target.value })} placeholder="Enter your HTML content here..." />
                         ) : (
-                          <div ref={previewRef} className="prose max-w-none p-4 border rounded min-h-[400px] bg-white" contentEditable dangerouslySetInnerHTML={{ __html: template.content }} onInput={handlePreviewInput} style={{ outline: 'none', cursor: 'text' }} suppressContentEditableWarning={true} />
+                          <iframe
+                            title="Inline preview"
+                            srcDoc={template.content}
+                            sandbox="allow-same-origin"
+                            className="w-full min-h-[400px] border rounded bg-white"
+                          />
                         )}
                       </div>
                     </div>
@@ -291,7 +337,14 @@ const LandingPageTemplateEditor = () => {
           <DialogHeader>
             <DialogTitle>{previewTemplate?.name || 'Template Preview'}</DialogTitle>
           </DialogHeader>
-          {previewTemplate && <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: previewTemplate.content }} />}
+          {previewTemplate && (
+            <iframe
+              title="Dialog preview"
+              srcDoc={previewTemplate.content}
+              sandbox="allow-same-origin"
+              className="w-full h-[70vh] border-0 rounded"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>

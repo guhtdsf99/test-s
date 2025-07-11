@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,7 +51,7 @@ export const UserDepartments = () => {
     if (!newDepartment) {
       toast({
         title: "Error",
-        description: "Please enter a department name",
+        description: "Please enter a group name",
         variant: "destructive",
       });
       return;
@@ -61,7 +60,7 @@ export const UserDepartments = () => {
     if (departments.includes(newDepartment)) {
       toast({
         title: "Error",
-        description: "This department already exists",
+        description: "This group already exists",
         variant: "destructive",
       });
       return;
@@ -71,8 +70,8 @@ export const UserDepartments = () => {
     setNewDepartment('');
     
     toast({
-      title: "Department Added",
-      description: `${newDepartment} department has been added successfully`,
+      title: "Group Added",
+      description: `${newDepartment} group has been added successfully`,
     });
   };
 
@@ -83,7 +82,7 @@ export const UserDepartments = () => {
     if (usersInDept.length > 0) {
       toast({
         title: "Cannot Delete",
-        description: "Cannot delete a department with users. Please move users first.",
+        description: "Cannot delete a group with users. Please move users first.",
         variant: "destructive",
       });
       return;
@@ -91,8 +90,8 @@ export const UserDepartments = () => {
     
     setDepartments(departments.filter(d => d !== dept));
     toast({
-      title: "Department Deleted",
-      description: `${dept} department has been deleted successfully`,
+      title: "Group Deleted",
+      description: `${dept} group has been deleted successfully`,
     });
   };
 
@@ -100,7 +99,7 @@ export const UserDepartments = () => {
     if (!movingUser || !targetDepartment) {
       toast({
         title: "Error",
-        description: "Please select a user and target department",
+        description: "Please select a user and target group",
         variant: "destructive",
       });
       return;
@@ -138,12 +137,12 @@ export const UserDepartments = () => {
       <CardContent>
         <div className="space-y-6">
           <div className="space-y-2">
-            <h3 className="text-lg font-medium">Add New Department</h3>
+            <h3 className="text-lg font-medium">Add New Group</h3>
             <div className="flex items-center gap-2">
               <Input
                 value={newDepartment}
                 onChange={(e) => setNewDepartment(e.target.value)}
-                placeholder="Department name"
+                placeholder="Group name"
               />
               <Button 
                 onClick={handleAddDepartment}
@@ -156,7 +155,7 @@ export const UserDepartments = () => {
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-lg font-medium">Current Departments</h3>
+            <h3 className="text-lg font-medium">Current Groups</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {departments.map((dept, index) => (
                 <div key={index} className="bg-gray-50 p-4 rounded flex items-center justify-between">
@@ -181,7 +180,7 @@ export const UserDepartments = () => {
               <Label htmlFor="filter-department">Filter by Group:</Label>
               <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
                 <SelectTrigger className="w-[240px]">
-                  <SelectValue placeholder="All Departments" />
+                  <SelectValue placeholder="All Groups" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Groups</SelectItem>

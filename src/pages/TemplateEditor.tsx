@@ -216,21 +216,22 @@ const TemplateEditor = () => {
     
     const selectedTemplate = templatesData.find(t => t.id?.toString() === templateId);
     if (selectedTemplate) {
-      // Prevent loading global templates for editing
       if (selectedTemplate.is_global) {
-        toast({
-          title: 'Read-only',
-          description: 'Global templates cannot be edited. Please create a new template instead.',
-          variant: 'default',
-        });
+        // Prefill a new template with the global template content so the user can customise it
         setTemplateMode('new');
+        setIsPreviewOpen(false);
+        setPreviewTemplate(null);
         setTemplate({
           id: '',
           name: '',
-          subject: '',
-          content: '',
-          difficulty: 'medium',
-          category: '',
+          subject: selectedTemplate.subject || '',
+          content: selectedTemplate.content || '',
+          difficulty: selectedTemplate.difficulty || 'medium',
+          category: selectedTemplate.category || '',
+        });
+        toast({
+          title: 'Global template copied',
+          description: 'You are now creating a new template based on the selected global template. Remember to give it a unique name.',
         });
         return;
       }
@@ -262,9 +263,22 @@ const TemplateEditor = () => {
       // Find selected template
       const selected = templatesData?.find(t => t.id?.toString() === value);
       if (selected && selected.is_global) {
-        // Open preview dialog for global templates
-        setPreviewTemplate(selected as EmailTemplate);
-        setIsPreviewOpen(true);
+        // Automatically switch to new mode with copied content
+        setTemplateMode('new');
+        setIsPreviewOpen(false);
+        setPreviewTemplate(null);
+        setTemplate({
+          id: '',
+          name: '',
+          subject: selected.subject || '',
+          content: selected.content || '',
+          difficulty: selected.difficulty || 'medium',
+          category: selected.category || '',
+        });
+        toast({
+          title: 'Global template copied',
+          description: 'A new template has been pre-filled with the selected global template. Please provide a name and save it.',
+        });
         return;
       }
       loadTemplate(value);
@@ -466,7 +480,12 @@ const TemplateEditor = () => {
           </div>
         </div>
         <div className="p-4">
-          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: template.content }} />
+          <iframe
+            title="Email preview"
+            srcDoc={template.content}
+            sandbox="allow-same-origin"
+            className="w-full h-[500px] border-0 rounded-b-md"
+          />
         </div>
       </CardContent>
     </Card>
@@ -546,9 +565,6 @@ const TemplateEditor = () => {
                                   className={option.isGlobal ? 'opacity-50' : ''}
                                 >
                                   {option.label}
-                                  {option.isGlobal && (
-                                    <span className="ml-2 text-xs text-muted-foreground">(Read-only)</span>
-                                  )}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -606,10 +622,7 @@ const TemplateEditor = () => {
                               <Code className="h-3.5 w-3.5 mr-1" />
                               HTML
                             </ToggleGroupItem>
-                            <ToggleGroupItem value="preview" className="text-xs px-3">
-                              <Type className="h-3.5 w-3.5 mr-1" />
-                              Preview
-                            </ToggleGroupItem>
+                           
                           </ToggleGroup>
                         </div>
                         
@@ -623,23 +636,14 @@ const TemplateEditor = () => {
                             />
                           </div>
                         ) : (
-                          <div 
-                            ref={previewRef}
-                            className="prose max-w-none p-4 border rounded min-h-[400px] bg-white"
-                            contentEditable
-                            dangerouslySetInnerHTML={{ __html: template.content }}
-                            onInput={handlePreviewInput}
-                            onBlur={handlePreviewBlur}
-                            onKeyDown={handlePreviewKeyDown}
-                            style={{ 
-                              outline: 'none',
-                              whiteSpace: 'pre-wrap',
-                              wordWrap: 'break-word',
-                              minHeight: '400px',
-                              cursor: 'text'
-                            }}
-                            suppressContentEditableWarning={true}
-                          />
+                          <div>
+                            <iframe
+                              title="Inline preview"
+                              srcDoc={template.content}
+                              sandbox="allow-same-origin"
+                              className="w-full min-h-[400px] border rounded bg-white"
+                            />
+                          </div>
                         )}
                       </div>
 
@@ -663,7 +667,12 @@ const TemplateEditor = () => {
             <DialogTitle>{previewTemplate?.name || previewTemplate?.subject || 'Template Preview'}</DialogTitle>
           </DialogHeader>
           {previewTemplate && (
-            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: previewTemplate.content }} />
+            <iframe
+              title="Dialog preview"
+              srcDoc={previewTemplate.content}
+              sandbox="allow-same-origin"
+              className="w-full h-[70vh] border-0 rounded"
+            />
           )}
         </DialogContent>
       </Dialog>

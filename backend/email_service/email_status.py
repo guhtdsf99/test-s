@@ -5,6 +5,7 @@ from django.conf import settings
 import logging
 from accounts.models import Email, User
 
+
 logger = logging.getLogger(__name__)
 
 class JsonResponseWithCors(JsonResponse):

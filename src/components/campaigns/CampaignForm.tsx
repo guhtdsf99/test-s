@@ -525,7 +525,12 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
         <Label>Preview</Label>
         <div className="border rounded p-4 max-h-96 overflow-y-auto text-sm">
           {selectedTemplate ? (
-            <div dangerouslySetInnerHTML={{ __html: selectedTemplate.content }} />
+            <iframe
+              title="Email preview"
+              srcDoc={selectedTemplate.content}
+              sandbox="allow-same-origin"
+              className="w-full h-[350px] border-0 rounded"
+            />
           ) : (
             <p className="text-muted-foreground">Select a template to preview its content.</p>
           )}
@@ -755,7 +760,14 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{previewTemplate?.name || 'Template Preview'}</DialogTitle></DialogHeader>
-          {previewTemplate && <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: previewTemplate.content }} />}
+          {previewTemplate && (
+            <iframe
+              title="Dialog preview"
+              srcDoc={previewTemplate.content}
+              sandbox="allow-same-origin"
+              className="w-full h-[70vh] border-0 rounded"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
