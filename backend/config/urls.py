@@ -18,3 +18,6 @@ if settings.DEBUG:
 else:
     # In production, these should be served by the web server (Nginx, Apache, etc.)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    # Allow Django to directly serve user-uploaded media files on Railway
+    # This is acceptable for small-scale deployments where a separate media server is not yet configured.
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
