@@ -72,16 +72,16 @@ const LMSCampaigns = () => {
         </div>
 
         <Tabs defaultValue="campaigns" className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto mb-6 grid-cols-3">
-            <TabsTrigger value="campaigns" className="flex items-center gap-1">
+          <TabsList className="grid w-full mb-6 grid-cols-3">
+            <TabsTrigger value="campaigns" className="flex-1 flex items-center justify-center gap-1">
               <FileText className="h-4 w-4" />
               <span>Campaigns</span>
             </TabsTrigger>
-            <TabsTrigger value="videos" className="flex items-center gap-1">
+            <TabsTrigger value="videos" className="flex-1 flex items-center justify-center gap-1">
               <Video className="h-4 w-4" />
               <span>Videos</span>
             </TabsTrigger>
-            <TabsTrigger value="certificates" className="flex items-center gap-1">
+            <TabsTrigger value="certificates" className="flex-1 flex items-center justify-center gap-1">
               <Award className="h-4 w-4" />
               <span>Certificates</span>
             </TabsTrigger>

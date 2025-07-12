@@ -424,10 +424,10 @@ const EmployeeCourses = () => {
           <h1 className="text-2xl font-bold mb-6 text-indigo-400">My Training Courses</h1>
         
         <Tabs defaultValue="active">
-          <TabsList className="mb-6">
-            <TabsTrigger value="active">Active Courses</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-            <TabsTrigger value="certificates">My Certificates</TabsTrigger>
+          <TabsList className="grid w-full mb-6 grid-cols-3">
+            <TabsTrigger value="active" className="flex-1 flex items-center justify-center">Active Courses</TabsTrigger>
+            <TabsTrigger value="completed" className="flex-1 flex items-center justify-center">Completed</TabsTrigger>
+            <TabsTrigger value="certificates" className="flex-1 flex items-center justify-center">My Certificates</TabsTrigger>
           </TabsList>
           
           <TabsContent value="active">

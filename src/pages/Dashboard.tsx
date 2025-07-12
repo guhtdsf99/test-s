@@ -240,9 +240,9 @@ const Dashboard = () => {
           </div>
 
           <Tabs defaultValue="phishing" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="phishing">Phishing Campaigns</TabsTrigger>
-              <TabsTrigger value="lms">LMS Campaign</TabsTrigger>
+            <TabsList className="w-full">
+              <TabsTrigger value="phishing" className="flex-1">Phishing Campaigns</TabsTrigger>
+              <TabsTrigger value="lms" className="flex-1">LMS Campaign</TabsTrigger>
             </TabsList>
 
             <TabsContent value="phishing" className="space-y-4">
