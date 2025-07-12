@@ -594,6 +594,7 @@ def company_certificates(request):
 from django.http import FileResponse
 from django.contrib.staticfiles import finders
 from django.conf import settings
+import os
 from pathlib import Path
 
 @api_view(['GET'])
