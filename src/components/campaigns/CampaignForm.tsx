@@ -474,7 +474,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
           <SelectContent>
             {emailConfigs.map((config) => (
               <SelectItem key={config.id} value={config.id.toString()}>
-                {config.host_user} ({config.host}:{config.port})
+                {config.host_user}
               </SelectItem>
             ))}
           </SelectContent>
