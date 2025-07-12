@@ -344,7 +344,8 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
       }
       
       targetUsers = users
-        .filter(user => user.department && selectedDepartments.includes(user.department.toString()))
+        .filter(user => Array.isArray(user.departments) &&
+          user.departments.some(depId => selectedDepartments.includes(depId.toString())))
         .map(user => user.id);
     } else {
       // Get selected individual users
@@ -382,7 +383,6 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ companySlug, onClose, onCre
       department_ids: targetType === 'department' ? selectedDepartments.map(id => parseInt(id)) : [],
     };
 
-    console.log('Sending campaign data:', campaignData); // DEBUG: Log payload
 
     setIsSending(true);
     

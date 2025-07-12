@@ -245,7 +245,7 @@ def create_phishing_campaign_by_slug(request):
             if recipient_ids:
                 recipients = User.objects.filter(company=company, id__in=recipient_ids, is_active=True)
             if department_ids:
-                users_in_depts = User.objects.filter(company=company, department__id__in=department_ids, is_active=True)
+                users_in_depts = User.objects.filter(company=company, departments__id__in=department_ids, is_active=True)
                 recipients = (recipients | users_in_depts).distinct()
         
         # --- Create Emails ---
@@ -290,7 +290,7 @@ def get_campaign_analytics(request, campaign_id):
             phishing_campaign=campaign
         ).select_related('recipient').only(
             'id', 'recipient__email', 'recipient__first_name', 'recipient__last_name',
-            'recipient__department__name', 'read', 'clicked', 'sent_at'
+            'recipient__departments__name', 'read', 'clicked', 'sent_at'
         )
         
         # Prepare the response data
@@ -300,7 +300,7 @@ def get_campaign_analytics(request, campaign_id):
                 'id': email.id,
                 'email': email.recipient.email,
                 'name': f"{email.recipient.first_name or ''} {email.recipient.last_name or ''}".strip() or 'Unknown',
-                'department': email.recipient.department.name if email.recipient.department else 'No Department',
+                'departments': [d.name for d in email.recipient.departments.all()] or ['No Department'],
                 'opened': email.read,
                 'clicked': email.clicked,
                 'sent_at': email.sent_at.isoformat() if email.sent_at else None
@@ -511,7 +511,7 @@ def department_performance_analytics(request):
     departments_data = []
 
     # Handle users with no department
-    users_no_department = User.objects.filter(company=company, department__isnull=True)
+    users_no_department = User.objects.filter(company=company, departments__isnull=True)
     emails_no_dept_qs = Email.objects.filter(
         phishing_campaign__company=company,
         phishing_campaign__start_date__gte=start_date,
@@ -534,7 +534,7 @@ def department_performance_analytics(request):
         })
 
     for dept in departments:
-        users_in_dept = User.objects.filter(department=dept)
+        users_in_dept = User.objects.filter(departments=dept)
         emails_qs = Email.objects.filter(
             phishing_campaign__company=company,
             phishing_campaign__start_date__gte=start_date,
@@ -640,7 +640,7 @@ def phishing_temporal_trend_analytics(request):
                 recipient__isnull=False,  # Skip emails with no recipient
                 phishing_campaign__end_date__gte=stat['period'],
                 phishing_campaign__end_date__lt=stat['period'] + timedelta(days=31 if grouping == 'monthly' else 7),
-                recipient__department=dept
+                recipient__departments=dept
             )
             
             total_sent_dept = dept_emails.count()

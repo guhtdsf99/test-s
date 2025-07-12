@@ -37,7 +37,7 @@ export const DepartmentManagement = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState('departments');
-  const [userDepartmentChanges, setUserDepartmentChanges] = useState<{[key: string]: string}>({});
+  const [userDepartmentChanges, setUserDepartmentChanges] = useState<{[key: string]: string[]}>({});
 
   // Fetch departments and users on component mount
   useEffect(() => {
@@ -114,33 +114,42 @@ export const DepartmentManagement = () => {
     }
   };
 
-  // Handle department change for a user
-  const handleDepartmentChange = (userId: string, departmentId: string) => {
-    setUserDepartmentChanges(prev => ({
-      ...prev,
-      [userId]: departmentId
-    }));
+  // Add a department to a user (only if not already present)
+  const handleAddDepartmentToUser = (userId: string, departmentId: string) => {
+    setUserDepartmentChanges(prev => {
+      const current: string[] = prev[userId] ?? (users.find(u => u.id === userId)?.departments ?? []);
+      if (current.includes(departmentId)) return prev;
+      return { ...prev, [userId]: [...current, departmentId] };
+    });
+  };
+
+  // Remove a department from a user
+  const handleRemoveDepartmentFromUser = (userId: string, departmentId: string) => {
+    setUserDepartmentChanges(prev => {
+      const current: string[] = prev[userId] ?? (users.find(u => u.id === userId)?.departments ?? []);
+      return { ...prev, [userId]: current.filter((id: string) => id !== departmentId) };
+    });
   };
 
   // Save department changes for users
   const saveUserDepartmentChanges = async () => {
     try {
-      const promises = Object.entries(userDepartmentChanges).map(([userId, departmentId]) => 
-        userService.updateUserDepartment(userId, departmentId)
+      const promises = Object.entries(userDepartmentChanges).map(([userId, deptArray]) => 
+        userService.updateUserDepartments(userId, deptArray as string[])
       );
       
       await Promise.all(promises);
       
       // Update local users state
-      const updatedUsers = users.map(user => {
+      const updatedUsers: User[] = users.map(user => {
         if (userDepartmentChanges[user.id]) {
-          const newDeptId = userDepartmentChanges[user.id];
-          const newDept = departments.find(d => d.id === newDeptId);
+          const newDeptIds = userDepartmentChanges[user.id] as string[];
+          const newDeptNames = departments.filter(d => newDeptIds.includes(d.id)).map(d => d.name);
           return {
             ...user,
-            department: newDeptId,
-            department_name: newDept ? newDept.name : user.department_name
-          };
+            departments: newDeptIds,
+            department_names: newDeptNames
+          } as User;
         }
         return user;
       });
@@ -175,7 +184,7 @@ export const DepartmentManagement = () => {
     user.first_name.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
     user.last_name.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-    (user.department_name && user.department_name.toLowerCase().includes(userSearchTerm.toLowerCase()))
+    (user.department_names && user.department_names.join(', ').toLowerCase().includes(userSearchTerm.toLowerCase()))
   );
 
   return (
@@ -335,14 +344,15 @@ export const DepartmentManagement = () => {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Group</TableHead>
+                    <TableHead>Groups</TableHead>
+                    <TableHead>Add</TableHead>
                     <TableHead>Role</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                         {userSearchTerm ? 'No users found matching your search.' : 'No users found.'}
                       </TableCell>
                     </TableRow>
@@ -351,20 +361,24 @@ export const DepartmentManagement = () => {
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
                         <TableCell>{user.email}</TableCell>
+                        <TableCell className="space-x-1">
+                          {(userDepartmentChanges[user.id] ?? user.departments ?? []).map(depId => {
+                              const dep = departments.find(d => d.id === depId);
+                              return (
+                                <Button key={depId} size="sm" variant="outline" className="px-2 py-0.5 text-xs bg-white text-gray-800 border-gray-300 hover:bg-gray-50" onClick={() => handleRemoveDepartmentFromUser(user.id, depId)}>
+                                  {dep?.name || 'Unnamed'} ×
+                                </Button>
+                              );
+                          })}
+                        </TableCell>
                         <TableCell>
-                          <Select
-                            defaultValue={user.department || ''}
-                            value={userDepartmentChanges[user.id] || user.department || ''}
-                            onValueChange={(value) => handleDepartmentChange(user.id, value)}
-                          >
+                          <Select onValueChange={(val)=>handleAddDepartmentToUser(user.id,val)}>
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select Group" />
+                              <SelectValue placeholder="Add Group" />
                             </SelectTrigger>
                             <SelectContent>
-                              {departments.map((dept) => (
-                                <SelectItem key={dept.id} value={dept.id}>
-                                  {dept.name}
-                                </SelectItem>
+                              {departments.filter(d => !(userDepartmentChanges[user.id] ?? user.departments ?? []).includes(d.id as string)).map(d => (
+                                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>

@@ -91,6 +91,33 @@ class UserManagementView(APIView):
             # Get the data from the request
             data = request.data.copy()
             
+            # Handle departments list (can be JSON array or CSV string)
+            raw_depts = data.get('departments')
+            if raw_depts in [None, '', []]:
+                raw_depts = []
+            
+            # If departments passed as comma-separated string, split it
+            if isinstance(raw_depts, str):
+                raw_depts = [d.strip() for d in raw_depts.split(',') if d.strip()]
+            
+            # Convert to ints and validate belong to company
+            valid_departments = []
+            for dept_id in raw_depts:
+                try:
+                    dept_obj = Department.objects.get(id=int(dept_id), company=company)
+                    valid_departments.append(dept_obj)
+                except (ValueError, Department.DoesNotExist):
+                    return Response(
+                        {"detail": f"Department {dept_id} not found for this company."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # If none provided, ensure default IT department exists
+            if not valid_departments:
+                dept_obj, _ = Department.objects.get_or_create(name='IT', company=company,
+                                                               defaults={'name': 'IT', 'company': company})
+                valid_departments = [dept_obj]
+            
             # Validate required fields
             required_fields = ['first_name', 'last_name', 'email', 'role']
             for field in required_fields:
@@ -99,24 +126,6 @@ class UserManagementView(APIView):
                         {"detail": f"{field} is required."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-            
-            # Check if department exists
-            department = None
-            if 'department' in data and data['department']:
-                try:
-                    department = Department.objects.get(id=data['department'], company=company)
-                except Department.DoesNotExist:
-                    return Response(
-                        {"detail": "Department not found."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            else:
-                # Use default IT department or create one
-                department, created = Department.objects.get_or_create(
-                    name='IT',
-                    company=company,
-                    defaults={'name': 'IT', 'company': company}
-                )
             
             # Check if user with this email already exists in this company
             if User.objects.filter(email=data['email'], company=company).exists():
@@ -145,8 +154,8 @@ class UserManagementView(APIView):
             # Set the company
             data['company'] = company.id
             
-            # Set the department
-            data['department'] = department.id
+            # Attach departments list for serializer validation
+            data['departments'] = [str(d.id) for d in valid_departments]
             
             # Create the user
             serializer = UserSerializer(data=data)
@@ -159,8 +168,7 @@ class UserManagementView(APIView):
                         first_name=data['first_name'],
                         last_name=data['last_name'],
                         role=data['role'],
-                        company=company,
-                        department=department
+                        company=company
                     )
                     
                     # Generate UUID and company_email_id before saving
@@ -186,6 +194,9 @@ class UserManagementView(APIView):
                     # Set the password and save
                     user.set_password(original_password)
                     user.save()
+                    
+                    # Assign many-to-many departments
+                    user.departments.set(valid_departments)
                     
                     # Skip sending password reset email
                     response_data = UserSerializer(user).data
@@ -280,13 +291,31 @@ class UserManagementView(APIView):
                         # This ensures security by always using a strong random password
                         password = generate_random_password(12)
                         
-                        # Get or create department
-                        department_name = row.get('department', 'IT')
-                        department, created = Department.objects.get_or_create(
-                            name=department_name,
-                            company=company,
-                            defaults={'name': department_name, 'company': company}
-                        )
+                        # Handle departments list (can be JSON array or CSV string)
+                        raw_depts = row.get('departments') or row.get('departments', [])
+                        if raw_depts in [None, '', []]:
+                            raw_depts = []
+                        
+                        # If departments passed as comma-separated string, split it
+                        if isinstance(raw_depts, str):
+                            raw_depts = [d.strip() for d in raw_depts.split(',') if d.strip()]
+                        
+                        # Convert to ints and validate belong to company
+                        valid_departments = []
+                        for dept_id in raw_depts:
+                            try:
+                                dept_obj = Department.objects.get(id=int(dept_id), company=company)
+                                valid_departments.append(dept_obj)
+                            except (ValueError, Department.DoesNotExist):
+                                results['total_errors'] += 1
+                                results['errors'].append(f"Department {dept_id} not found for this company")
+                                continue
+                        
+                        # If none provided, ensure default IT department exists
+                        if not valid_departments:
+                            dept_obj, _ = Department.objects.get_or_create(name='IT', company=company,
+                                                                           defaults={'name': 'IT', 'company': company})
+                            valid_departments = [dept_obj]
                         
                         try:
                             # Create user object but don't save it yet
@@ -296,8 +325,7 @@ class UserManagementView(APIView):
                                 first_name=row['first_name'],
                                 last_name=row['last_name'],
                                 role=row['role'],
-                                company=company,
-                                department=department
+                                company=company
                             )
                             
                             # Generate UUID and company_email_id before saving
@@ -320,6 +348,9 @@ class UserManagementView(APIView):
                             # Set the password and save
                             user.set_password(password)
                             user.save()
+                            
+                            # Assign many-to-many departments
+                            user.departments.set(valid_departments)
                             
                             # Add created user to the results
                             results['created_users'].append(UserSerializer(user).data)
@@ -387,13 +418,31 @@ class UserManagementView(APIView):
                         # This ensures security by always using a strong random password
                         password = generate_random_password(12)
                         
-                        # Get or create department
-                        department_name = row_data.get('department', 'IT')
-                        department, created = Department.objects.get_or_create(
-                            name=department_name,
-                            company=company,
-                            defaults={'name': department_name, 'company': company}
-                        )
+                        # Handle departments list (can be JSON array or CSV string)
+                        raw_depts = row_data.get('departments') or row_data.get('departments', [])
+                        if raw_depts in [None, '', []]:
+                            raw_depts = []
+                        
+                        # If departments passed as comma-separated string, split it
+                        if isinstance(raw_depts, str):
+                            raw_depts = [d.strip() for d in raw_depts.split(',') if d.strip()]
+                        
+                        # Convert to ints and validate belong to company
+                        valid_departments = []
+                        for dept_id in raw_depts:
+                            try:
+                                dept_obj = Department.objects.get(id=int(dept_id), company=company)
+                                valid_departments.append(dept_obj)
+                            except (ValueError, Department.DoesNotExist):
+                                results['total_errors'] += 1
+                                results['errors'].append(f"Department {dept_id} not found for this company")
+                                continue
+                        
+                        # If none provided, ensure default IT department exists
+                        if not valid_departments:
+                            dept_obj, _ = Department.objects.get_or_create(name='IT', company=company,
+                                                                           defaults={'name': 'IT', 'company': company})
+                            valid_departments = [dept_obj]
                         
                         try:
                             # Create user object but don't save it yet
@@ -403,8 +452,7 @@ class UserManagementView(APIView):
                                 first_name=row_data['first_name'],
                                 last_name=row_data['last_name'],
                                 role=row_data['role'],
-                                company=company,
-                                department=department
+                                company=company
                             )
                             
                             # Generate UUID and company_email_id before saving
@@ -427,6 +475,9 @@ class UserManagementView(APIView):
                             # Set the password and save
                             user.set_password(password)
                             user.save()
+                            
+                            # Assign many-to-many departments
+                            user.departments.set(valid_departments)
                             
                             # Add created user to the results
                             results['created_users'].append(UserSerializer(user).data)
@@ -493,13 +544,31 @@ class UserManagementView(APIView):
                         # This ensures security by always using a strong random password
                         password = generate_random_password(12)
                         
-                        # Get or create department
-                        department_name = row_data.get('department', 'IT')
-                        department, created = Department.objects.get_or_create(
-                            name=department_name,
-                            company=company,
-                            defaults={'name': department_name, 'company': company}
-                        )
+                        # Handle departments list (can be JSON array or CSV string)
+                        raw_depts = row_data.get('departments') or row_data.get('departments', [])
+                        if raw_depts in [None, '', []]:
+                            raw_depts = []
+                        
+                        # If departments passed as comma-separated string, split it
+                        if isinstance(raw_depts, str):
+                            raw_depts = [d.strip() for d in raw_depts.split(',') if d.strip()]
+                        
+                        # Convert to ints and validate belong to company
+                        valid_departments = []
+                        for dept_id in raw_depts:
+                            try:
+                                dept_obj = Department.objects.get(id=int(dept_id), company=company)
+                                valid_departments.append(dept_obj)
+                            except (ValueError, Department.DoesNotExist):
+                                results['total_errors'] += 1
+                                results['errors'].append(f"Department {dept_id} not found for this company")
+                                continue
+                        
+                        # If none provided, ensure default IT department exists
+                        if not valid_departments:
+                            dept_obj, _ = Department.objects.get_or_create(name='IT', company=company,
+                                                                           defaults={'name': 'IT', 'company': company})
+                            valid_departments = [dept_obj]
                         
                         try:
                             # Create user object but don't save it yet
@@ -509,8 +578,7 @@ class UserManagementView(APIView):
                                 first_name=row_data['first_name'],
                                 last_name=row_data['last_name'],
                                 role=row_data['role'],
-                                company=company,
-                                department=department
+                                company=company
                             )
                             
                             # Generate UUID and company_email_id before saving
@@ -533,6 +601,9 @@ class UserManagementView(APIView):
                             # Set the password and save
                             user.set_password(password)
                             user.save()
+                            
+                            # Assign many-to-many departments
+                            user.departments.set(valid_departments)
                             
                             # Add created user to the results
                             results['created_users'].append(UserSerializer(user).data)
@@ -691,26 +762,25 @@ class UserDepartmentUpdateView(APIView):
             # Get the user to update
             user = get_object_or_404(User, id=user_id, company=company)
             
-            # Check if department is provided
-            if 'department' not in request.data:
-                return Response(
-                    {"detail": "Department ID is required."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            raw_depts = request.data.get('departments')
+            # Allow clearing departments by sending empty list / string
+            if raw_depts in [None, '', []]:
+                user.departments.clear()
+                serializer = UserSerializer(user)
+                return Response(serializer.data)
             
-            department_id = request.data['department']
+            if isinstance(raw_depts, str):
+                raw_depts = [d.strip() for d in raw_depts.split(',') if d.strip()]
             
-            # Check if department exists
-            try:
-                department = Department.objects.get(id=department_id, company=company)
-            except Department.DoesNotExist:
-                return Response(
-                    {"detail": "Department not found."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            valid_departments = []
+            for dept_id in raw_depts:
+                try:
+                    dept_obj = Department.objects.get(id=int(dept_id), company=company)
+                    valid_departments.append(dept_obj)
+                except (ValueError, Department.DoesNotExist):
+                    return Response({"detail": f"Department {dept_id} not found."}, status=status.HTTP_404_NOT_FOUND)
             
-            # Update the user's department
-            user.department = department
+            user.departments.set(valid_departments)
             user.save()
             
             serializer = UserSerializer(user)
@@ -720,32 +790,26 @@ class UserDepartmentUpdateView(APIView):
         if request.user.role.lower() == 'super_admin':
             user = get_object_or_404(User, id=user_id)
             
-            # Check if department is provided
-            if 'department' not in request.data:
-                return Response(
-                    {"detail": "Department ID is required."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            raw_depts = request.data.get('departments')
+            if raw_depts in [None, '', []]:
+                user.departments.clear()
+                serializer = UserSerializer(user)
+                return Response(serializer.data)
             
-            department_id = request.data['department']
+            if isinstance(raw_depts, str):
+                raw_depts = [d.strip() for d in raw_depts.split(',') if d.strip()]
             
-            # Check if department exists
-            try:
-                department = Department.objects.get(id=department_id)
-                # For super admin, ensure the department and user belong to the same company
-                if department.company != user.company:
-                    return Response(
-                        {"detail": "Department and user must belong to the same company."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            except Department.DoesNotExist:
-                return Response(
-                    {"detail": "Department not found."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            valid_departments = []
+            for dept_id in raw_depts:
+                try:
+                    dept_obj = Department.objects.get(id=int(dept_id))
+                    if dept_obj.company != user.company:
+                        return Response({"detail": "Department and user must belong to the same company."}, status=status.HTTP_400_BAD_REQUEST)
+                    valid_departments.append(dept_obj)
+                except (ValueError, Department.DoesNotExist):
+                    return Response({"detail": f"Department {dept_id} not found."}, status=status.HTTP_404_NOT_FOUND)
             
-            # Update the user's department
-            user.department = department
+            user.departments.set(valid_departments)
             user.save()
             
             serializer = UserSerializer(user)

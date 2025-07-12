@@ -152,8 +152,8 @@ export const UserAccessControl: React.FC = () => {
   const filteredUsers = searchTerm 
     ? users.filter(user => 
         `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (user.department_name?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+        (user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.department_names?.join(', ').toLowerCase() || '').includes(searchTerm.toLowerCase()))
       )
     : users;
 
@@ -203,7 +203,7 @@ export const UserAccessControl: React.FC = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Group</TableHead>
+                  <TableHead>Groups</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                   <TableHead>Reset</TableHead>
@@ -222,7 +222,7 @@ export const UserAccessControl: React.FC = () => {
                       <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell className="capitalize">{user.role?.toLowerCase()}</TableCell>
-                      <TableCell>{user.department_name || '-'}</TableCell>
+                      <TableCell>{user.department_names?.join(', ') || '-'}</TableCell>
                       <TableCell>
                         <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
                           user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'

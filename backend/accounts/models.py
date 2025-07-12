@@ -51,10 +51,9 @@ class User(AbstractUser):
         blank=True,
         related_name='users'
     )
-    department = models.ForeignKey(
-        Department,
-        on_delete=models.SET_NULL,
-        null=True,
+    # Replaced single department FK with M2M relation to allow multiple departments per user
+    departments = models.ManyToManyField(
+        'Department',
         blank=True,
         related_name='users'
     )
@@ -100,6 +99,23 @@ class User(AbstractUser):
             self.company_email_id = temp_id
             
         super().save(*args, **kwargs)
+
+    # ------------------------------------------------------------------
+    # Compatibility helpers so existing code that expects a single
+    # `user.department` attribute keeps working.
+    # ------------------------------------------------------------------
+    @property
+    def department(self):
+        """Return the first related department or None (back-compat)."""
+        return self.departments.first()
+
+    @department.setter
+    def department(self, value):
+        """Replace departments with the single given value (back-compat)."""
+        if value is None:
+            self.departments.clear()
+        else:
+            self.departments.set([value])
 
 class Company(models.Model):
     name = models.CharField(max_length=255, unique=True)

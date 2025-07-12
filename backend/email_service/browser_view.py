@@ -63,7 +63,6 @@ def view_email_in_browser(request, email_id):
                 var img = new Image();
                 img.src = "{tracking_url}/api/email/mark-read/{email_id}/?uid={tracking_id}&method=script&t={timestamp}";
                 // Log view to console
-                console.log("Email {email_id} viewed in browser");
             </script>
         </head>
         <body>

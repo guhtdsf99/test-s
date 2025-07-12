@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -27,7 +26,7 @@ export const UserManualEntry = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [department, setDepartment] = useState('');
+  const [department, setDepartment] = useState(''); // single pick for now
   const [role, setRole] = useState('USER');
   
   const [users, setUsers] = useState<User[]>([]);
@@ -152,7 +151,7 @@ export const UserManualEntry = () => {
         first_name: firstName,
         last_name: lastName,
         email,
-        department,
+        departments: [department], // backend expects array
         role
       });
 
@@ -182,7 +181,7 @@ export const UserManualEntry = () => {
   const filteredUsers = users.filter(user => 
     `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    (user.department_names?.join(', ').toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -370,7 +369,7 @@ export const UserManualEntry = () => {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Group</TableHead>
+                  <TableHead>Groups</TableHead>
                   <TableHead>Role</TableHead>
                 </TableRow>
               </TableHeader>
@@ -387,7 +386,7 @@ export const UserManualEntry = () => {
                       <TableCell className="font-medium">{user.first_name} {user.last_name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        {user.department_name || '-'}
+                        {user.department_names?.join(', ') || '-'}
                       </TableCell>
                       <TableCell className="capitalize">{user.role?.toLowerCase()}</TableCell>
                     </TableRow>

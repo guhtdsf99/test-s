@@ -11,17 +11,16 @@ class DepartmentSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'company')
 
 class UserSerializer(serializers.ModelSerializer):
-    department_name = serializers.SerializerMethodField(read_only=True)
+    department_names = serializers.SerializerMethodField(read_only=True)
+    departments = serializers.PrimaryKeyRelatedField(many=True, queryset=Department.objects.all(), required=False)
     
     class Meta:
         model = User
-        fields = ('id', 'uuid', 'username', 'email', 'company_email_id', 'first_name', 'last_name', 'role', 'company', 'department', 'department_name', 'is_active')
+        fields = ('id', 'uuid', 'username', 'email', 'company_email_id', 'first_name', 'last_name', 'role', 'company', 'departments', 'department_names', 'is_active')
         read_only_fields = ('id', 'uuid', 'company_email_id', 'role', 'company')
     
-    def get_department_name(self, obj):
-        if obj.department:
-            return obj.department.name
-        return None
+    def get_department_names(self, obj):
+        return [d.name for d in obj.departments.all()]
 
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
@@ -56,11 +55,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
     company_name = serializers.CharField(write_only=True, required=False)
     company_description = serializers.CharField(write_only=True, required=False)
-    department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all(), required=False)
+    departments = serializers.PrimaryKeyRelatedField(many=True, queryset=Department.objects.all(), required=False)
 
     class Meta:
         model = User
-        fields = ('username', 'email', 'password', 'first_name', 'last_name', 'role', 'company_name', 'company_description', 'department')
+        fields = ('username', 'email', 'password', 'first_name', 'last_name', 'role', 'company_name', 'company_description', 'departments')
         extra_kwargs = {
             'first_name': {'required': True},
             'last_name': {'required': True},

@@ -25,8 +25,4 @@ class CourseAdmin(admin.ModelAdmin):
         }),
     )
 
-@admin.register(Question)
-class QuestionAdmin(admin.ModelAdmin):
-    list_display = ('question_text', 'course', 'created_at')
-    list_filter = ('course', 'created_at')
-    search_fields = ('question_text', 'answer_text')
+# Do not register Question separately to hide it from the admin index. It is still editable via the inline on Course.

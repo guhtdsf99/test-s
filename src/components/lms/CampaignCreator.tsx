@@ -48,7 +48,7 @@ interface User {
   name: string;
   username?: string;
   email?: string;
-  department?: string;
+  department?: string | string[];
 }
 
 interface Department {
@@ -289,8 +289,9 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({ onCreate }) =>
           throw new Error('Please select at least one department');
         }
         const allUsers = await userService.getUsers();
-        const departmentUsers = allUsers.filter(user => 
-          user.department && selectedDepartments.includes(user.department.toString())
+        const departmentUsers = allUsers.filter(user =>
+          Array.isArray(user.departments) &&
+          user.departments.some(depId => selectedDepartments.includes(depId.toString()))
         );
         
         if (departmentUsers.length === 0) {

@@ -81,8 +81,8 @@ export interface User {
   last_name: string;
   role: string;
   is_active?: boolean;
-  department?: string;
-  department_name?: string;
+  departments?: string[];          // list of department IDs
+  department_names?: string[];    // names from backend
   company?: Company;
 }
 
@@ -111,7 +111,7 @@ export interface NewUserData {
   first_name: string;
   last_name: string;
   email: string;
-  department: string;
+  departments: string[];   // array of IDs as strings
   role: string;
 }
 
@@ -561,7 +561,7 @@ export const userService = {
           'Authorization': `Bearer ${token}`,
           ...(superAdmin ? { 'X-Super-Admin': 'true' } : {}),
         },
-        body: JSON.stringify(userData),
+        body: JSON.stringify({ ...userData, departments: userData.departments.map(String) }),
       });
 
       // Handle non-JSON responses (like 500 errors that return HTML)
@@ -753,7 +753,7 @@ export const userService = {
   },
 
   // Update user's department
-  updateUserDepartment: async (userId: string, departmentId: string): Promise<User> => {
+  updateUserDepartments: async (userId: string, departments: string[]): Promise<User> => {
     const token = localStorage.getItem('token');
     
     if (!token) {
@@ -782,7 +782,7 @@ export const userService = {
           'Authorization': `Bearer ${token}`,
           ...(superAdmin ? { 'X-Super-Admin': 'true' } : {}),
         },
-        body: JSON.stringify({ department: departmentId }),
+        body: JSON.stringify({ departments }),
       });
 
       if (!response.ok) {

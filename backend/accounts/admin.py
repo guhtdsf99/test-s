@@ -55,16 +55,17 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('is_active', 'activated', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
         }),
         (_('Important dates'), {'fields': ('last_login', 'date_joined')}),
-        (_('Custom fields'), {'fields': ('role', 'company', 'department')}),
+        (_('Custom fields'), {'fields': ('role', 'company', 'departments')}),
     )
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'username', 'password1', 'password2', 'role', 'company', 'department', 'activated'),
+            'fields': ('email', 'username', 'password1', 'password2', 'role', 'company', 'departments', 'activated'),
         }),
     )
     search_fields = ('email', 'username', 'first_name', 'last_name')
     ordering = ('email',)
+    filter_horizontal = ('departments',)
 
 admin.site.register(User, UserAdmin)
 
