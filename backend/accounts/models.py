@@ -130,6 +130,7 @@ class Company(models.Model):
         validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png'])]
     )
     color_palette = models.CharField(max_length=255, blank=True, help_text="Comma-separated list of hex color codes, e.g., #FFFFFF,#000000")
+    country = models.CharField(max_length=100, blank=True, help_text="Country where the company is located")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
