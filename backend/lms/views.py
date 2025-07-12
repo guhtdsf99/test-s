@@ -592,7 +592,9 @@ def company_certificates(request):
 
 # ------------------ Certificate Download ------------------
 from django.http import FileResponse
-
+from django.contrib.staticfiles import finders
+from django.conf import settings
+from pathlib import Path
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -620,10 +622,12 @@ def download_certificate(request, certificate_id):
     page_height = pdf.h
 
     # Add background image
-    import os
-    from django.conf import settings
-    background_path = os.path.normpath(os.path.join(settings.BASE_DIR, '..', 'public', 'Certificate.png'))
-    if os.path.exists(background_path):
+    background_path = (
+        finders.find('images/Certificate.png')
+        or finders.find('Certificate.png')
+        or os.path.normpath(os.path.join(settings.BASE_DIR, '..', 'public', 'Certificate.png'))
+    )
+    if background_path and os.path.exists(background_path):
         pdf.image(background_path, x=0, y=0, w=page_width, h=page_height)
 
     # Helper to strip/replace characters not supported by standard PDF-14 fonts (Latin-1 only)
@@ -638,10 +642,6 @@ def download_certificate(request, certificate_id):
     campaign_name_safe = _latin1_safe(cert.campaign.name)
 
     # --- Load fonts with graceful fallback across OSes ---
-    import os
-    from django.conf import settings
-    from pathlib import Path
-
     def _find_font(candidates):
         for p in candidates:
             if Path(p).exists():
