@@ -637,64 +637,93 @@ def download_certificate(request, certificate_id):
     full_name_safe = _latin1_safe(cert.user.get_full_name() or cert.user.username or cert.user.email)
     campaign_name_safe = _latin1_safe(cert.campaign.name)
 
+    # --- Load fonts with graceful fallback across OSes ---
+    import os
+    from django.conf import settings
+    from pathlib import Path
+
+    def _find_font(candidates):
+        for p in candidates:
+            if Path(p).exists():
+                return str(p)
+        return None
+
+    # Common font paths on Windows and Linux
+    bold_candidates = [
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+        '/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf',
+        'C:/Windows/Fonts/timesbd.ttf',
+        'C:/Windows/Fonts/arialbd.ttf',
+    ]
+    regular_candidates = [
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        '/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf',
+        'C:/Windows/Fonts/times.ttf',
+        'C:/Windows/Fonts/arial.ttf',
+    ]
+
+    font_path_bold = _find_font(bold_candidates)
+    font_path_regular = _find_font(regular_candidates)
+
+    try:
+        user_name_font = ImageFont.truetype(font_path_bold, 30) if font_path_bold else ImageFont.load_default()
+        campaign_font = ImageFont.truetype(font_path_regular, 12) if font_path_regular else ImageFont.load_default()
+    except IOError:
+        # As a last resort use default bitmap font
+        user_name_font = campaign_font = ImageFont.load_default()
+
     # --- Generate text as a transparent image to make it unselectable ---
     try:
         # NOTE: These font paths are for Windows. Adjust for your server's OS if different.
-        font_path_bold = 'C:/Windows/Fonts/timesbd.ttf'
-        font_path_regular = 'C:/Windows/Fonts/times.ttf'
-        user_name_font = ImageFont.truetype(font_path_bold, 30)
-        campaign_font = ImageFont.truetype(font_path_regular, 12)
+        text_image = Image.new('RGBA', (int(page_width), int(page_height)), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(text_image)
+
+        # Draw User Name
+        user_name_bbox = draw.textbbox((0,0), full_name_safe, font=user_name_font)
+        user_name_width = user_name_bbox[2] - user_name_bbox[0]
+        user_name_x = (page_width - user_name_width) / 2
+        user_name_y = page_height / 2.2
+        draw.text((user_name_x, user_name_y), full_name_safe, font=user_name_font, fill=(50, 50, 50, 255))
+
+        # Draw Campaign Text
+        line1 = f"who have completed a {campaign_name_safe} program, indicating that they have"
+        line2 = "fulfilled a certain number of hours of service."
+        line1_bbox = draw.textbbox((0,0), line1, font=campaign_font)
+        line1_width = line1_bbox[2] - line1_bbox[0]
+        line2_bbox = draw.textbbox((0,0), line2, font=campaign_font)
+        line2_width = line2_bbox[2] - line2_bbox[0]
+        line1_x = (page_width - line1_width) / 2
+        line2_x = (page_width - line2_width) / 2
+        line1_y = page_height / 1.7
+        line2_y = line1_y + 20
+        draw.text((line1_x, line1_y), line1, font=campaign_font, fill=(148, 119, 80, 255))
+        draw.text((line2_x, line2_y), line2, font=campaign_font, fill=(148, 119, 80, 255))
+
+        # Save the text image to a buffer and overlay it on the PDF
+        with BytesIO() as text_buffer:
+            text_image.save(text_buffer, format='PNG')
+            text_buffer.seek(0)
+            pdf.image(text_buffer, x=0, y=0, w=page_width, h=page_height)
+
+        # --- Export PDF bytes (after all drawing) ---
+        try:
+            pdf_raw = pdf.output(dest='S')
+        except Exception as pdf_err:
+            import logging
+            logging.exception("FPDF generation failed: %s", pdf_err)
+            return Response({'error': 'Certificate generation failed.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Convert to bytes if needed
+
+        if isinstance(pdf_raw, str):
+            pdf_raw = pdf_raw.encode('latin1')
+        elif isinstance(pdf_raw, bytearray):
+            pdf_raw = bytes(pdf_raw)
+
+        response = FileResponse(BytesIO(pdf_raw), content_type='application/pdf', filename=f'certificate_{certificate_id}.pdf')
+        return response
     except IOError:
         return Response({'error': 'Font files not found. Cannot generate certificate text.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    # Create a transparent canvas for the text
-    text_image = Image.new('RGBA', (int(page_width), int(page_height)), (255, 255, 255, 0))
-    draw = ImageDraw.Draw(text_image)
-
-    # Draw User Name
-    user_name_bbox = draw.textbbox((0,0), full_name_safe, font=user_name_font)
-    user_name_width = user_name_bbox[2] - user_name_bbox[0]
-    user_name_x = (page_width - user_name_width) / 2
-    user_name_y = page_height / 2.2
-    draw.text((user_name_x, user_name_y), full_name_safe, font=user_name_font, fill=(50, 50, 50, 255))
-
-    # Draw Campaign Text
-    line1 = f"who have completed a {campaign_name_safe} program, indicating that they have"
-    line2 = "fulfilled a certain number of hours of service."
-    line1_bbox = draw.textbbox((0,0), line1, font=campaign_font)
-    line1_width = line1_bbox[2] - line1_bbox[0]
-    line2_bbox = draw.textbbox((0,0), line2, font=campaign_font)
-    line2_width = line2_bbox[2] - line2_bbox[0]
-    line1_x = (page_width - line1_width) / 2
-    line2_x = (page_width - line2_width) / 2
-    line1_y = page_height / 1.7
-    line2_y = line1_y + 20
-    draw.text((line1_x, line1_y), line1, font=campaign_font, fill=(148, 119, 80, 255))
-    draw.text((line2_x, line2_y), line2, font=campaign_font, fill=(148, 119, 80, 255))
-
-    # Save the text image to a buffer and overlay it on the PDF
-    with BytesIO() as text_buffer:
-        text_image.save(text_buffer, format='PNG')
-        text_buffer.seek(0)
-        pdf.image(text_buffer, x=0, y=0, w=page_width, h=page_height)
-
-    # --- Export PDF bytes (after all drawing) ---
-    try:
-        pdf_raw = pdf.output(dest='S')
-    except Exception as pdf_err:
-        import logging
-        logging.exception("FPDF generation failed: %s", pdf_err)
-        return Response({'error': 'Certificate generation failed.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    # Convert to bytes if needed
-
-    if isinstance(pdf_raw, str):
-        pdf_raw = pdf_raw.encode('latin1')
-    elif isinstance(pdf_raw, bytearray):
-        pdf_raw = bytes(pdf_raw)
-
-    response = FileResponse(BytesIO(pdf_raw), content_type='application/pdf', filename=f'certificate_{certificate_id}.pdf')
-    return response
 
 
 from django.utils import timezone
