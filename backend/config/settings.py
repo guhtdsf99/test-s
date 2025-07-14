@@ -12,7 +12,6 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key')
 
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-MEDIA_ROOT = "/data/media"
 
 ALLOWED_HOSTS = ['*']  # Allow all hosts for initial deployment
 
