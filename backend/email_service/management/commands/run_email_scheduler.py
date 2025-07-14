@@ -12,8 +12,22 @@ logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     help = "Runs the APScheduler for sending queued emails."
+    
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--run-now',
+            action='store_true',
+            help='Run the email job immediately for testing',
+        )
 
     def handle(self, *args, **options):
+        # If run-now flag is set, execute job immediately and exit
+        if options.get('run_now'):
+            self.stdout.write("Running email job immediately...")
+            self.safe_execute_job()
+            self.stdout.write("Email job completed.")
+            return
+            
         max_retries = 5
         retry_delay = 30  # seconds
 

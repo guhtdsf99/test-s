@@ -23,9 +23,12 @@ COPY . .
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
+ENV DJANGO_LOG_LEVEL=INFO
 
 # Run migrations and collect static files
 RUN python manage.py collectstatic --noinput
 
-# Command to run both web and worker processes using honcho
-CMD python manage.py migrate && honcho start
+# Command to run migrations, test the job, then start both processes
+CMD python manage.py migrate && \
+    python manage.py run_email_scheduler --run-now && \
+    honcho start
