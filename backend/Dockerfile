@@ -11,9 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements file
 COPY requirements.txt .
 
-# Install Python dependencies
+# Install Python dependencies including honcho
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install honcho
 
 # Copy project files
 COPY . .
@@ -26,5 +27,5 @@ ENV PORT=8000
 # Run migrations and collect static files
 RUN python manage.py collectstatic --noinput
 
-# Command to run the application
-CMD python manage.py migrate && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+# Command to run both web and worker processes using honcho
+CMD python manage.py migrate && honcho start
