@@ -153,7 +153,12 @@ const Navbar = () => {
                 <span>Cbulwark AI</span>
               </div>
             </Link>
-            
+            <Link to={getLink("/lms-campaigns-gamified")} className={getLinkClasses("/lms-campaigns-gamified")}>
+                  <div className="flex items-center gap-1">
+                    <BookOpen className="h-4 w-4" />
+                    <span className="">Gamified LMS</span>
+                  </div>
+                </Link>
             {isAuthenticated ? (
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
@@ -239,6 +244,12 @@ const Navbar = () => {
                     <div className="flex items-center gap-1">
                       <Send className="h-4 w-4" />
                       <span>Sender</span>
+                    </div>
+                  </Link>
+                  <Link to={getLink("/lms-campaigns-gamified")} className={getLinkClasses("/lms-campaigns-gamified")}> 
+                    <div className="flex items-center gap-1">
+                      <BookOpen className="h-4 w-4" />
+                      <span className="">Gamified LMS</span>
                     </div>
                   </Link>
                 </>

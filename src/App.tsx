@@ -14,6 +14,7 @@ import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import LMSCampaigns from "./pages/LMSCampaigns";
+import LMSCampaignsGamified from "./pages/LMSCampaignsGamified";
 import UserManagement from "./pages/UserManagement";
 import Sender from "./pages/Sender";
 import Login from "./pages/Login";
@@ -75,6 +76,7 @@ const App = () => (
               <Route path="user-management" element={<UserManagement />} />
               <Route path="sender" element={<Sender />} />
               <Route path="lms-campaigns" element={<LMSCampaigns />} />
+              <Route path="lms-campaigns-gamified" element={<LMSCampaignsGamified />} />
               <Route path="ai-chatbot" element={<AIChatbot />} />
             </Route>
             
