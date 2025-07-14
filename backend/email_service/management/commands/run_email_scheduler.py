@@ -3,6 +3,7 @@ from django.core.management.base import BaseCommand
 from django.conf import settings
 from apscheduler.schedulers.blocking import BlockingScheduler
 from django_apscheduler.jobstores import DjangoJobStore
+from django_apscheduler.models import DjangoJob, DjangoJobExecution
 from email_service.email_tasks import send_queued_email_job
 from django.db import close_old_connections
 import time
@@ -15,11 +16,20 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         max_retries = 5
         retry_delay = 30  # seconds
+
+        # Clear old job state on startup
+        self.clear_old_job_state()
         
         for attempt in range(max_retries):
             try:
                 scheduler = BlockingScheduler(timezone=settings.TIME_ZONE)
                 scheduler.add_jobstore(DjangoJobStore(), "default")
+
+                # Remove any existing job with the same ID
+                try:
+                    scheduler.remove_job('send_queued_email_job')
+                except:
+                    pass
 
                 scheduler.add_job(
                     self.safe_execute_job,
@@ -29,7 +39,7 @@ class Command(BaseCommand):
                     max_instances=1,
                     replace_existing=True,
                 )
-                
+
                 self.stdout.write("Starting scheduler...")
                 scheduler.start()
                 
@@ -41,12 +51,28 @@ class Command(BaseCommand):
                 raise
             finally:
                 close_old_connections()
-    
+
+    def clear_old_job_state(self):
+        """Clear old APScheduler job state from database"""
+        try:
+            # Delete old job executions
+            DjangoJobExecution.objects.all().delete()
+            
+            # Delete old job definitions
+            DjangoJob.objects.filter(id='send_queued_email_job').delete()
+            
+            self.stdout.write("Cleared old job state from database")
+            logger.info("Cleared old APScheduler job state")
+        except Exception as e:
+            logger.warning(f"Could not clear old job state: {str(e)}")
+
     def safe_execute_job(self):
         """Wrapper function to ensure database connections are closed after job execution"""
         try:
             close_old_connections()
+            logger.info("Executing scheduled email job")
             send_queued_email_job()
+            logger.info("Completed scheduled email job")
         except Exception as e:
             logger.error(f"Error in scheduled job: {str(e)}", exc_info=True)
             raise
