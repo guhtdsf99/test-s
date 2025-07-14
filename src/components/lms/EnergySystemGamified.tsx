@@ -51,7 +51,7 @@ export const EnergySystem = () => {
       <CardHeader className='pb-3'>
         <CardTitle className='flex items-center gap-2'>
           <Battery className={`h-5 w-5 ${getEnergyColor()}`} /> Energy System
-          <Shield className='h-4 w-4 text-csword-gold ml-auto' title='Secure System' />
+          <Shield className='h-4 w-4 text-csword-gold ml-auto' />
         </CardTitle>
       </CardHeader>
       <CardContent className='space-y-4'>

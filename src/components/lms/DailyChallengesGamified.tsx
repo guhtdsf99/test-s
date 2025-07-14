@@ -60,7 +60,7 @@ export const DailyChallenges = () => {
         <CardTitle className='flex items-center gap-2'>
           <Target className='h-5 w-5 text-csword-gold' />
           Daily Challenges
-          <Shield className='h-4 w-4 text-csword-gold ml-auto' title='Secure Challenge System' />
+          <Shield className='h-4 w-4 text-csword-gold ml-auto' />
         </CardTitle>
       </CardHeader>
       <CardContent>
