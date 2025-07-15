@@ -10,6 +10,19 @@ import time
 
 logger = logging.getLogger(__name__)
 
+def safe_execute_job():
+    """Standalone function to execute email job - can be pickled by APScheduler"""
+    try:
+        close_old_connections()
+        logger.info("Executing scheduled email job")
+        send_queued_email_job()
+        logger.info("Completed scheduled email job")
+    except Exception as e:
+        logger.error(f"Error in scheduled job: {str(e)}", exc_info=True)
+        raise
+    finally:
+        close_old_connections()
+
 class Command(BaseCommand):
     help = "Runs the APScheduler for sending queued emails."
     
@@ -24,7 +37,7 @@ class Command(BaseCommand):
         # If run-now flag is set, execute job immediately and exit
         if options.get('run_now'):
             self.stdout.write("Running email job immediately...")
-            self.safe_execute_job()
+            safe_execute_job()
             self.stdout.write("Email job completed.")
             return
             
@@ -46,7 +59,7 @@ class Command(BaseCommand):
                     pass
 
                 scheduler.add_job(
-                    self.safe_execute_job,
+                    safe_execute_job,
                     trigger='interval',
                     minutes=2,
                     id='send_queued_email_job',
@@ -80,15 +93,3 @@ class Command(BaseCommand):
         except Exception as e:
             logger.warning(f"Could not clear old job state: {str(e)}")
 
-    def safe_execute_job(self):
-        """Wrapper function to ensure database connections are closed after job execution"""
-        try:
-            close_old_connections()
-            logger.info("Executing scheduled email job")
-            send_queued_email_job()
-            logger.info("Completed scheduled email job")
-        except Exception as e:
-            logger.error(f"Error in scheduled job: {str(e)}", exc_info=True)
-            raise
-        finally:
-            close_old_connections()
