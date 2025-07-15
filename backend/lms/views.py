@@ -624,7 +624,7 @@ def download_certificate(request, certificate_id):
 
     # Add background image
     background_path = (
-        finders.find('images/Certificate.png')
+        finders.find('static/js/Certificate.png')
         or finders.find('Certificate.png')
         or os.path.normpath(os.path.join(settings.BASE_DIR, '..', 'public', 'Certificate.png'))
     )
