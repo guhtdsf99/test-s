@@ -622,13 +622,38 @@ def download_certificate(request, certificate_id):
     page_width = pdf.w
     page_height = pdf.h
 
-    # Add background image
-    background_path = (
-        finders.find('static/js/Certificate.png')
-        or finders.find('Certificate.png')
-        or os.path.normpath(os.path.join(settings.BASE_DIR, '..', 'public', 'Certificate.png'))
-    )
-    if background_path and os.path.exists(background_path):
+    # Add background image - use our middleware to find the correct path
+    from .middleware import get_certificate_path
+    background_path = get_certificate_path()
+    
+    # Log the background path for debugging
+    import logging
+    logging.info(f"Certificate background path: {background_path}")
+    
+    if background_path:
+        try:
+            # Check if the file exists and is readable
+            with open(background_path, 'rb') as f:
+                pass
+            logging.info(f"Successfully opened certificate background at {background_path}")
+        except Exception as e:
+            logging.error(f"Error accessing certificate background: {str(e)}")
+            # Try to use a fallback method - create a simple background
+            try:
+                # Create a simple colored background if image is not available
+                pdf.set_fill_color(245, 245, 245)  # Light gray
+                pdf.rect(0, 0, page_width, page_height, style='F')
+                logging.info("Created fallback background")
+            except Exception as bg_err:
+                logging.error(f"Error creating fallback background: {str(bg_err)}")
+    else:
+        # Create a simple colored background if image is not available
+        pdf.set_fill_color(245, 245, 245)  # Light gray
+        pdf.rect(0, 0, page_width, page_height, style='F')
+        logging.info("Created fallback background - no image path found")
+    
+    # Now try to add the image if we have a path
+    if background_path:
         pdf.image(background_path, x=0, y=0, w=page_width, h=page_height)
 
     # Helper to strip/replace characters not supported by standard PDF-14 fonts (Latin-1 only)

@@ -134,6 +134,14 @@ class UserManagementView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
                 
+            # Check if company has reached its user limit (including inactive users)
+            total_users = User.objects.filter(company=company).count()
+            if total_users >= company.number_of_allowed_users:
+                return Response(
+                    {"detail": f"Company has reached its limit of {company.number_of_allowed_users} users. Please upgrade your plan or contact support."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
             # Generate a username if not provided
             if 'username' not in data or not data['username']:
                 # Create username from email
@@ -258,8 +266,22 @@ class UserManagementView(APIView):
                     'errors': []
                 }
                 
+                # Check if company has reached its user limit before processing any rows
+                total_users = User.objects.filter(company=company).count()
+                remaining_slots = company.number_of_allowed_users - total_users
+                if remaining_slots <= 0:
+                    return Response(
+                        {"detail": f"Company has reached its limit of {company.number_of_allowed_users} users. Please upgrade your plan or contact support."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
                 for row in reader:
                     try:
+                        # Check if we would exceed the user limit with this user
+                        if results['total_created'] >= remaining_slots:
+                            results['errors'].append(f"Company user limit of {company.number_of_allowed_users} reached. Stopped processing remaining rows.")
+                            break
+                            
                         # Validate required fields
                         required_fields = ['first_name', 'last_name', 'email', 'role']
                         missing_fields = [field for field in required_fields if field not in row or not row[field]]
@@ -292,23 +314,37 @@ class UserManagementView(APIView):
                         password = generate_random_password(12)
                         
                         # Handle departments list (can be JSON array or CSV string)
-                        raw_depts = row.get('departments') or row.get('departments', [])
-                        if raw_depts in [None, '', []]:
-                            raw_depts = []
+                        raw_depts = []
                         
-                        # If departments passed as comma-separated string, split it
-                        if isinstance(raw_depts, str):
-                            raw_depts = [d.strip() for d in raw_depts.split(',') if d.strip()]
+                        # Check for multiple columns with the same header
+                        for key, value in row.items():
+                            if key.lower() in ['departments', 'department'] and value and value.strip():
+                                # If the value contains commas, split it into multiple departments
+                                if ',' in value:
+                                    dept_names = [d.strip() for d in value.split(',') if d.strip()]
+                                    raw_depts.extend(dept_names)
+                                else:
+                                    raw_depts.append(value.strip())
                         
-                        # Convert to ints and validate belong to company
+                        # Convert to department objects and validate they belong to company
                         valid_departments = []
-                        for dept_id in raw_depts:
+                        for dept_name in raw_depts:
                             try:
-                                dept_obj = Department.objects.get(id=int(dept_id), company=company)
-                                valid_departments.append(dept_obj)
-                            except (ValueError, Department.DoesNotExist):
+                                # Try to get department by ID first
+                                try:
+                                    dept_obj = Department.objects.get(id=int(dept_name), company=company)
+                                    valid_departments.append(dept_obj)
+                                except (ValueError, Department.DoesNotExist):
+                                    # If not a valid ID, try to get by name
+                                    dept_obj, created = Department.objects.get_or_create(
+                                        name=dept_name, 
+                                        company=company,
+                                        defaults={'name': dept_name, 'company': company}
+                                    )
+                                    valid_departments.append(dept_obj)
+                            except Exception:
                                 results['total_errors'] += 1
-                                results['errors'].append(f"Department {dept_id} not found for this company")
+                                results['errors'].append(f"Department {dept_name} not found for this company and could not be created")
                                 continue
                         
                         # If none provided, ensure default IT department exists
@@ -383,9 +419,42 @@ class UserManagementView(APIView):
                     'total_errors': 0,
                     'errors': []
                 }
+                
+                # Check if company has reached its user limit before processing any rows
+                total_users = User.objects.filter(company=company).count()
+                remaining_slots = company.number_of_allowed_users - total_users
+                if remaining_slots <= 0:
+                    return Response(
+                        {"detail": f"Company has reached its limit of {company.number_of_allowed_users} users. Please upgrade your plan or contact support."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
                 for row_index, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
-                    row_data = dict(zip(headers, row))
+                    # Check if we would exceed the user limit with this user
+                    if results['total_created'] >= remaining_slots:
+                        results['errors'].append(f"Company user limit of {company.number_of_allowed_users} reached. Stopped processing remaining rows.")
+                        break
+                        
+                    # Create a dictionary but handle multiple columns with the same header
+                    row_data = {}
+                    dept_values = []
+                    
+                    # Process each cell in the row
+                    for i, cell_value in enumerate(row):
+                        if i < len(headers):
+                            header = headers[i]
+                            # Special handling for departments
+                            if header and header.lower() in ['departments', 'department']:
+                                if cell_value and str(cell_value).strip():
+                                    # If the value contains commas, split it into multiple departments
+                                    if ',' in str(cell_value):
+                                        dept_names = [d.strip() for d in str(cell_value).split(',') if d.strip()]
+                                        dept_values.extend(dept_names)
+                                    else:
+                                        dept_values.append(str(cell_value).strip())
+                            else:
+                                row_data[header] = cell_value
+                    
                     try:
                         # Validate required fields
                         required_fields = ['first_name', 'last_name', 'email', 'role']
@@ -418,24 +487,25 @@ class UserManagementView(APIView):
                         # This ensures security by always using a strong random password
                         password = generate_random_password(12)
                         
-                        # Handle departments list (can be JSON array or CSV string)
-                        raw_depts = row_data.get('departments') or row_data.get('departments', [])
-                        if raw_depts in [None, '', []]:
-                            raw_depts = []
-                        
-                        # If departments passed as comma-separated string, split it
-                        if isinstance(raw_depts, str):
-                            raw_depts = [d.strip() for d in raw_depts.split(',') if d.strip()]
-                        
-                        # Convert to ints and validate belong to company
+                        # Convert department names/IDs to department objects
                         valid_departments = []
-                        for dept_id in raw_depts:
+                        for dept_name in dept_values:
                             try:
-                                dept_obj = Department.objects.get(id=int(dept_id), company=company)
-                                valid_departments.append(dept_obj)
-                            except (ValueError, Department.DoesNotExist):
+                                # Try to get department by ID first
+                                try:
+                                    dept_obj = Department.objects.get(id=int(dept_name), company=company)
+                                    valid_departments.append(dept_obj)
+                                except (ValueError, Department.DoesNotExist):
+                                    # If not a valid ID, try to get by name
+                                    dept_obj, created = Department.objects.get_or_create(
+                                        name=dept_name, 
+                                        company=company,
+                                        defaults={'name': dept_name, 'company': company}
+                                    )
+                                    valid_departments.append(dept_obj)
+                            except Exception:
                                 results['total_errors'] += 1
-                                results['errors'].append(f"Department {dept_id} not found for this company")
+                                results['errors'].append(f"Department {dept_name} not found for this company and could not be created")
                                 continue
                         
                         # If none provided, ensure default IT department exists
@@ -508,10 +578,44 @@ class UserManagementView(APIView):
                     'total_errors': 0,
                     'errors': []
                 }
+                
+                # Check if company has reached its user limit before processing any rows
+                total_users = User.objects.filter(company=company).count()
+                remaining_slots = company.number_of_allowed_users - total_users
+                if remaining_slots <= 0:
+                    return Response(
+                        {"detail": f"Company has reached its limit of {company.number_of_allowed_users} users. Please upgrade your plan or contact support."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
                 for row_index in range(1, sheet.nrows):
+                    # Check if we would exceed the user limit with this user
+                    if results['total_created'] >= remaining_slots:
+                        results['errors'].append(f"Company user limit of {company.number_of_allowed_users} reached. Stopped processing remaining rows.")
+                        break
+                        
                     row = sheet.row_values(row_index)
-                    row_data = dict(zip(headers, row))
+                    
+                    # Create a dictionary but handle multiple columns with the same header
+                    row_data = {}
+                    dept_values = []
+                    
+                    # Process each cell in the row
+                    for i, cell_value in enumerate(row):
+                        if i < len(headers):
+                            header = headers[i]
+                            # Special handling for departments
+                            if header and header.lower() in ['departments', 'department']:
+                                if cell_value and str(cell_value).strip():
+                                    # If the value contains commas, split it into multiple departments
+                                    if ',' in str(cell_value):
+                                        dept_names = [d.strip() for d in str(cell_value).split(',') if d.strip()]
+                                        dept_values.extend(dept_names)
+                                    else:
+                                        dept_values.append(str(cell_value).strip())
+                            else:
+                                row_data[header] = cell_value
+                        
                     try:
                         # Validate required fields
                         required_fields = ['first_name', 'last_name', 'email', 'role']
@@ -544,24 +648,25 @@ class UserManagementView(APIView):
                         # This ensures security by always using a strong random password
                         password = generate_random_password(12)
                         
-                        # Handle departments list (can be JSON array or CSV string)
-                        raw_depts = row_data.get('departments') or row_data.get('departments', [])
-                        if raw_depts in [None, '', []]:
-                            raw_depts = []
-                        
-                        # If departments passed as comma-separated string, split it
-                        if isinstance(raw_depts, str):
-                            raw_depts = [d.strip() for d in raw_depts.split(',') if d.strip()]
-                        
-                        # Convert to ints and validate belong to company
+                        # Convert department names/IDs to department objects
                         valid_departments = []
-                        for dept_id in raw_depts:
+                        for dept_name in dept_values:
                             try:
-                                dept_obj = Department.objects.get(id=int(dept_id), company=company)
-                                valid_departments.append(dept_obj)
-                            except (ValueError, Department.DoesNotExist):
+                                # Try to get department by ID first
+                                try:
+                                    dept_obj = Department.objects.get(id=int(dept_name), company=company)
+                                    valid_departments.append(dept_obj)
+                                except (ValueError, Department.DoesNotExist):
+                                    # If not a valid ID, try to get by name
+                                    dept_obj, created = Department.objects.get_or_create(
+                                        name=dept_name, 
+                                        company=company,
+                                        defaults={'name': dept_name, 'company': company}
+                                    )
+                                    valid_departments.append(dept_obj)
+                            except Exception:
                                 results['total_errors'] += 1
-                                results['errors'].append(f"Department {dept_id} not found for this company")
+                                results['errors'].append(f"Department {dept_name} not found for this company and could not be created")
                                 continue
                         
                         # If none provided, ensure default IT department exists
@@ -616,7 +721,7 @@ class UserManagementView(APIView):
                         
                     except Exception as e:
                         results['total_errors'] += 1
-                        results['errors'].append(f"Error processing row {row_index + 1}: {str(e)}")
+                        results['errors'].append(f"Error processing row {row_index}: {str(e)}")
 
                 return Response(results, status=status.HTTP_201_CREATED)
 
@@ -624,7 +729,7 @@ class UserManagementView(APIView):
                 return Response({"detail": f"Error reading XLS file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response(
-                {"detail": "Unsupported file format. Please upload a CSV, XLS, or XLSX file."},
+                {"detail": "Unsupported file format. Please upload a CSV, XLSX, or XLS file."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -634,9 +739,9 @@ class UserDetailView(APIView):
     """
     permission_classes = [permissions.IsAuthenticated]
     
-    def get(self, request, user_id, company_slug=None):
+    def get(self, request, user_id=None, company_slug=None):
         """
-        Retrieve a user by ID
+        Retrieve a user instance
         """
         # If company_slug is provided, check if user has access
         if company_slug:
@@ -658,20 +763,14 @@ class UserDetailView(APIView):
             serializer = UserSerializer(user)
             return Response(serializer.data)
         
-        # If no company slug, only super admins can access any user
-        if request.user.role.lower() == 'super_admin':
-            user = get_object_or_404(User, id=user_id)
-            serializer = UserSerializer(user)
-            return Response(serializer.data)
-        
         return Response(
             {"detail": "Company context is required."},
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    def patch(self, request, user_id, company_slug=None):
+    def put(self, request, user_id=None, company_slug=None):
         """
-        Update a user's information
+        Update a user instance
         """
         # If company_slug is provided, check if user has access
         if company_slug:
@@ -688,46 +787,85 @@ class UserDetailView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
                 
-            # Get the user to update
+            # Get the user
             user = get_object_or_404(User, id=user_id, company=company)
             
-            # Don't allow changing super admin status unless you are a super admin
-            if user.role.lower() == 'super_admin' and request.user.role.lower() != 'super_admin':
-                return Response(
-                    {"detail": "You don't have permission to modify a super admin."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+            # Get the data from the request
+            data = request.data.copy()
             
-            # Don't allow users to deactivate themselves
-            if str(user.id) == str(request.user.id) and 'is_active' in request.data and not request.data['is_active']:
-                return Response(
-                    {"detail": "You cannot deactivate your own account."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            # Handle departments list (can be JSON array or CSV string)
+            raw_depts = data.get('departments')
+            if raw_depts in [None, '', []]:
+                raw_depts = []
+            
+            # If departments passed as comma-separated string, split it
+            if isinstance(raw_depts, str):
+                raw_depts = [d.strip() for d in raw_depts.split(',') if d.strip()]
+            
+            # Convert to ints and validate belong to company
+            valid_departments = []
+            for dept_id in raw_depts:
+                try:
+                    dept_obj = Department.objects.get(id=int(dept_id), company=company)
+                    valid_departments.append(dept_obj)
+                except (ValueError, Department.DoesNotExist):
+                    return Response(
+                        {"detail": f"Department {dept_id} not found for this company."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # If none provided, ensure default IT department exists
+            if not valid_departments:
+                dept_obj, _ = Department.objects.get_or_create(name='IT', company=company,
+                                                               defaults={'name': 'IT', 'company': company})
+                valid_departments = [dept_obj]
             
             # Update the user
-            serializer = UserSerializer(user, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            user.first_name = data.get('first_name', user.first_name)
+            user.last_name = data.get('last_name', user.last_name)
+            user.is_active = data.get('is_active', user.is_active)
+            
+            # Only update role if provided and user has permission
+            if 'role' in data and data['role']:
+                user.role = data['role']
+            
+            user.departments.set(valid_departments)
+            user.save()
+            
+            serializer = UserSerializer(user)
+            return Response(serializer.data)
         
-        # If no company slug, only super admins can update any user
-        if request.user.role.lower() == 'super_admin':
-            user = get_object_or_404(User, id=user_id)
+        return Response(
+            {"detail": "Company context is required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    def delete(self, request, user_id=None, company_slug=None):
+        """
+        Delete a user instance
+        """
+        # If company_slug is provided, check if user has access
+        if company_slug:
+            company = get_object_or_404(Company, slug=company_slug)
             
-            # Don't allow users to deactivate themselves
-            if str(user.id) == str(request.user.id) and 'is_active' in request.data and not request.data['is_active']:
+            # Check if user has admin privileges
+            user_role = request.user.role.lower() if request.user.role else ''
+            is_admin = user_role in ['admin', 'company_admin', 'super_admin']
+            
+            # Check if user belongs to this company or is a super admin
+            if not is_admin or (user_role != 'super_admin' and (not request.user.company or request.user.company.id != company.id)):
                 return Response(
-                    {"detail": "You cannot deactivate your own account."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"detail": "You don't have access to manage users in this company."},
+                    status=status.HTTP_403_FORBIDDEN
                 )
+                
+            # Get the user
+            user = get_object_or_404(User, id=user_id, company=company)
             
-            serializer = UserSerializer(user, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # Delete the user
+            user.delete()
+            
+            return Response(status=status.HTTP_204_NO_CONTENT)
         
         return Response(
             {"detail": "Company context is required."},
@@ -740,7 +878,7 @@ class UserDepartmentUpdateView(APIView):
     """
     permission_classes = [permissions.IsAuthenticated]
     
-    def patch(self, request, user_id, company_slug=None):
+    def put(self, request, user_id=None, company_slug=None):
         """
         Update a user's department
         """
@@ -759,55 +897,38 @@ class UserDepartmentUpdateView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
                 
-            # Get the user to update
+            # Get the user
             user = get_object_or_404(User, id=user_id, company=company)
             
-            raw_depts = request.data.get('departments')
-            # Allow clearing departments by sending empty list / string
-            if raw_depts in [None, '', []]:
-                user.departments.clear()
-                serializer = UserSerializer(user)
-                return Response(serializer.data)
+            # Get the data from the request
+            data = request.data.copy()
             
+            # Handle departments list (can be JSON array or CSV string)
+            raw_depts = data.get('departments')
+            if raw_depts in [None, '', []]:
+                raw_depts = []
+            
+            # If departments passed as comma-separated string, split it
             if isinstance(raw_depts, str):
                 raw_depts = [d.strip() for d in raw_depts.split(',') if d.strip()]
             
+            # Convert to ints and validate belong to company
             valid_departments = []
             for dept_id in raw_depts:
                 try:
                     dept_obj = Department.objects.get(id=int(dept_id), company=company)
                     valid_departments.append(dept_obj)
                 except (ValueError, Department.DoesNotExist):
-                    return Response({"detail": f"Department {dept_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+                    return Response(
+                        {"detail": f"Department {dept_id} not found for this company."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
             
-            user.departments.set(valid_departments)
-            user.save()
-            
-            serializer = UserSerializer(user)
-            return Response(serializer.data)
-        
-        # If no company slug, only super admins can update any user
-        if request.user.role.lower() == 'super_admin':
-            user = get_object_or_404(User, id=user_id)
-            
-            raw_depts = request.data.get('departments')
-            if raw_depts in [None, '', []]:
-                user.departments.clear()
-                serializer = UserSerializer(user)
-                return Response(serializer.data)
-            
-            if isinstance(raw_depts, str):
-                raw_depts = [d.strip() for d in raw_depts.split(',') if d.strip()]
-            
-            valid_departments = []
-            for dept_id in raw_depts:
-                try:
-                    dept_obj = Department.objects.get(id=int(dept_id))
-                    if dept_obj.company != user.company:
-                        return Response({"detail": "Department and user must belong to the same company."}, status=status.HTTP_400_BAD_REQUEST)
-                    valid_departments.append(dept_obj)
-                except (ValueError, Department.DoesNotExist):
-                    return Response({"detail": f"Department {dept_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+            # If none provided, ensure default IT department exists
+            if not valid_departments:
+                dept_obj, _ = Department.objects.get_or_create(name='IT', company=company,
+                                                               defaults={'name': 'IT', 'company': company})
+                valid_departments = [dept_obj]
             
             user.departments.set(valid_departments)
             user.save()
@@ -823,42 +944,32 @@ class UserDepartmentUpdateView(APIView):
 class UserPasswordResetView(APIView):
     def post(self, request, company_slug=None):
         try:
-            # Get user_id from request data
+            if not company_slug:
+                return Response({"detail": "Company context is required."}, status=status.HTTP_400_BAD_REQUEST)
+                
+            company = get_object_or_404(Company, slug=company_slug)
+            
+            # Check if user has admin privileges
+            user_role = request.user.role.lower() if request.user.role else ''
+            is_admin = user_role in ['admin', 'company_admin', 'super_admin']
+            
+            # Check if user belongs to this company or is a super admin
+            if not is_admin or (user_role != 'super_admin' and (not request.user.company or request.user.company.id != company.id)):
+                return Response(
+                    {"detail": "You don't have permission to reset passwords."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Get user ID from request
             user_id = request.data.get('user_id')
             if not user_id:
-                return Response(
-                    {"detail": "User ID is required."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
+                return Response({"detail": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+                
             # Get the user
-            try:
-                user = User.objects.get(id=user_id)
-            except User.DoesNotExist:
-                return Response(
-                    {"detail": "User not found."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            # If company_slug is provided, verify the user belongs to that company
-            if company_slug:
-                try:
-                    company = Company.objects.get(slug=company_slug)
-                    if user.company != company:
-                        return Response(
-                            {"detail": "User does not belong to the specified company."},
-                            status=status.HTTP_403_FORBIDDEN
-                        )
-                except Company.DoesNotExist:
-                    return Response(
-                        {"detail": "Company not found."},
-                        status=status.HTTP_404_NOT_FOUND
-                    )
-
-            # Generate a random password
-            import string
-            import random
-            new_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+            user = get_object_or_404(User, id=user_id, company=company)
+            
+            # Generate a new random password
+            new_password = generate_random_password(12)
             
             # Set the new password
             user.set_password(new_password)
@@ -866,35 +977,17 @@ class UserPasswordResetView(APIView):
 
             # Send password reset email
             try:
-                email_sent = send_password_reset_email(user, new_password, company_slug or '')
-                if email_sent:
-                    return Response(
-                        {"detail": "Password reset email sent successfully."},
-                        status=status.HTTP_200_OK
-                    )
-                else:
-                    return Response(
-                        {
-                            "detail": "Password was reset but email could not be sent.",
-                            "temporary_password": new_password
-                        },
-                        status=status.HTTP_200_OK
-                    )
+                send_password_reset_email(user, new_password)
+                return Response({
+                    "detail": "Password reset successful. An email has been sent to the user.",
+                    "password": new_password  # Include the password in the response for admin reference
+                })
             except Exception as e:
-                return Response(
-                    {
-                        "detail": "Password was reset but there was an error sending the email.",
-                        "error": str(e),
-                        "temporary_password": new_password
-                    },
-                    status=status.HTTP_200_OK
-                )
-
+                # If email sending fails, still return the password but with a warning
+                return Response({
+                    "detail": f"Password reset successful but email could not be sent: {str(e)}",
+                    "password": new_password
+                })
+                
         except Exception as e:
-            import traceback
-            print(f"Error in UserPasswordResetView: {str(e)}")
-            print(traceback.format_exc())
-            return Response(
-                {"detail": "An error occurred while processing your request."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"detail": f"Error resetting password: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)

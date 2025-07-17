@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
-from .company_views import CompanyListView
+from .company_views import CompanyListView, CompanyInfoView
 from .user_management_views import UserManagementView, UserDetailView, UserDepartmentUpdateView, UserPasswordResetView
 from .department_views import DepartmentListView, DepartmentDetailView
 
@@ -23,6 +23,7 @@ company_patterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='company_token_refresh'),
     path('profile/', views.UserProfileView.as_view(), name='company_profile'),
     path('change-password/', views.ChangePasswordView.as_view(), name='company_change_password'),
+    path('company-info/', CompanyInfoView.as_view(), name='company_info'),
 
     # User management endpoints - specific paths must come before generic ones
     path('users/bulk-upload/', UserManagementView.as_view(), name='company_user_bulk_upload'),

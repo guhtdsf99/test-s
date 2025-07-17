@@ -122,6 +122,20 @@ export interface BulkUploadResponse {
   total_errors: number;
 }
 
+export interface CompanyInfo {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  number_of_allowed_users: number;
+  company_logo: string | null;
+  color_palette: string;
+  country: string;
+  created_at: string;
+  updated_at: string;
+  current_user_count?: number; // Added for frontend use
+}
+
 export interface QuickInsightsData {
   reporting_rate: number;
   security_awareness: number;
@@ -432,6 +446,63 @@ export const authService = {
 };
 
 // User management service
+// Get company information including user limits
+export const companyInfoService = {
+  // Get company information including user count and limits
+  getCompanyInfo: async (): Promise<CompanyInfo> => {
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    try {
+      const companySlug = getCompanySlug();
+      const superAdmin = isSuperAdmin();
+      
+      if (!companySlug) {
+        throw new Error('Company context is required to fetch company information');
+      }
+      
+      // Use the company endpoint to get company details
+      const endpoint = `${API_URL}/auth/${companySlug}/company-info/`;
+      
+      const response = await fetch(endpoint, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          ...(superAdmin ? { 'X-Super-Admin': 'true' } : {}),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch company information');
+      }
+
+      // Get the company info
+      const companyInfo = await response.json();
+      
+      // Get the user count in a separate request
+      const usersResponse = await fetch(`${API_URL}/auth/${companySlug}/users/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          ...(superAdmin ? { 'X-Super-Admin': 'true' } : {}),
+        },
+      });
+      
+      if (usersResponse.ok) {
+        const users = await usersResponse.json();
+        // Add the current user count to the company info
+        companyInfo.current_user_count = users.length;
+      }
+      
+      return companyInfo;
+    } catch (error) {
+      console.error('Get company info error:', error);
+      throw error;
+    }
+  }
+};
+
 export const userService = {
   // Get all users for a company
   getUsers: async (): Promise<User[]> => {
@@ -567,13 +638,13 @@ export const userService = {
       // Handle non-JSON responses (like 500 errors that return HTML)
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        console.error('Server returned non-JSON response:', await response.text());
         throw new Error('Server error. Please try again later.');
       }
 
       const data = await response.json();
       
       if (!response.ok) {
+        console.error('Add user response not OK:', response.status, response.statusText);
         throw new Error(data.detail || 'Failed to add user');
       }
 

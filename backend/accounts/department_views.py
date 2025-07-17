@@ -130,7 +130,7 @@ class DepartmentDetailView(APIView):
                 
             # Get the department
             department = get_object_or_404(Department, id=department_id, company=company)
-            department.user_count = User.objects.filter(department=department).count()
+            department.user_count = User.objects.filter(departments=department).count()
             serializer = DepartmentSerializer(department)
             return Response(serializer.data)
         
@@ -162,7 +162,7 @@ class DepartmentDetailView(APIView):
             department = get_object_or_404(Department, id=department_id, company=company)
             
             # Check if department has users
-            if User.objects.filter(department=department).exists():
+            if User.objects.filter(departments=department).exists():
                 return Response(
                     {"detail": "Cannot delete department with users. Reassign users first."},
                     status=status.HTTP_400_BAD_REQUEST

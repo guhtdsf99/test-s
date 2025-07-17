@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { FileSpreadsheet, UserPlus, Upload, Check, UserRound, RefreshCw, Loader2, Search } from 'lucide-react';
+import { FileSpreadsheet, UserPlus, Upload, Check, UserRound, RefreshCw, Loader2, Search, AlertCircle } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -15,10 +15,12 @@ import {
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { userService } from '@/services/api';
+import { userService, companyInfoService } from '@/services/api';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-// Use the User and Department interfaces from the API service
-import { User, Department } from '@/services/api';
+// Use the User, Department, and CompanyInfo interfaces from the API service
+import { User, Department, CompanyInfo } from '@/services/api';
 
 export const UserManualEntry = () => {
   const { toast } = useToast();
@@ -28,18 +30,21 @@ export const UserManualEntry = () => {
   const [email, setEmail] = useState('');
   const [department, setDepartment] = useState(''); // single pick for now
   const [role, setRole] = useState('USER');
-  
+
   const [users, setUsers] = useState<User[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Fetch users and departments on component mount
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+  const [loadingCompanyInfo, setLoadingCompanyInfo] = useState(true);
+
+  // Fetch users, departments, and company info on component mount
   useEffect(() => {
     fetchData();
+    fetchCompanyInfo();
   }, []);
-  
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -59,7 +64,20 @@ export const UserManualEntry = () => {
       setLoading(false);
     }
   };
-  
+
+  const fetchCompanyInfo = async () => {
+    try {
+      setLoadingCompanyInfo(true);
+      const info = await companyInfoService.getCompanyInfo();
+      setCompanyInfo(info);
+    } catch (error) {
+      console.error('Failed to load company info:', error);
+      // Don't show a toast for this error as it's not critical
+    } finally {
+      setLoadingCompanyInfo(false);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchData();
@@ -81,7 +99,7 @@ export const UserManualEntry = () => {
       });
       return;
     }
-    
+
 
     toast({
       title: "File upload started",
@@ -91,13 +109,13 @@ export const UserManualEntry = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const response = await userService.uploadUsersBulk(formData);
-      
+
       // Check if response has the expected format
       if (response && response.created_users && Array.isArray(response.created_users)) {
         setUsers([...users, ...response.created_users]);
-        
+
         // Show any errors in the toast if there are any
         if (response.errors && response.errors.length > 0) {
           toast({
@@ -116,21 +134,29 @@ export const UserManualEntry = () => {
           throw new Error('Invalid response format from server');
         }
       }
-      
+
       toast({
         title: "Upload successful",
         description: `${file.name} has been uploaded and users added successfully.`,
       });
-      
+
       setFile(null);
       // Reset the file input
       const fileInput = document.getElementById('excel-upload') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
     } catch (error) {
       console.error('File upload error:', error);
+
+      // Extract the error message
+      const errorMessage = error instanceof Error ? error.message : "There was an error uploading the file.";
+
+      // Check if the error is about the company user limit
+      const isUserLimitError = errorMessage.toLowerCase().includes('limit') &&
+        errorMessage.toLowerCase().includes('user');
+
       toast({
-        title: "Upload failed",
-        description: error instanceof Error ? error.message : "There was an error uploading the file. Please try again.",
+        title: isUserLimitError ? "Company User Limit Reached" : "Upload failed",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -156,7 +182,7 @@ export const UserManualEntry = () => {
       });
 
       setUsers([...users, newUser]);
-      
+
       toast({
         title: "User added",
         description: "User has been added successfully",
@@ -169,16 +195,25 @@ export const UserManualEntry = () => {
       setDepartment('');
       setRole('USER');
     } catch (error) {
+      console.error('Add user error:', error);
+
+      // Extract the error message
+      const errorMessage = error instanceof Error ? error.message : "There was an error adding the user.";
+
+      // Check if the error is about the company user limit
+      const isUserLimitError = errorMessage.toLowerCase().includes('limit') &&
+        errorMessage.toLowerCase().includes('user');
+
       toast({
-        title: "Failed to add user",
-        description: "There was an error adding the user. Please try again.",
+        title: isUserLimitError ? "Company User Limit Reached" : "Failed to add user",
+        description: errorMessage,
         variant: "destructive",
       });
     }
   };
 
   // Filter users based on search term
-  const filteredUsers = users.filter(user => 
+  const filteredUsers = users.filter(user =>
     `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (user.department_names?.join(', ').toLowerCase() || '').includes(searchTerm.toLowerCase())
@@ -191,10 +226,10 @@ export const UserManualEntry = () => {
           <UserPlus className="h-5 w-5 text-[#907527]" />
           Add Users
         </CardTitle>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleRefresh} 
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
           disabled={loading || refreshing}
           className="flex items-center gap-1"
         >
@@ -202,6 +237,46 @@ export const UserManualEntry = () => {
           Refresh
         </Button>
       </CardHeader>
+
+      {/* User Limit Indicator */}
+      {companyInfo && companyInfo.current_user_count !== undefined && (
+        <div className="px-6 pb-4">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-sm font-medium">
+              User Limit: {companyInfo.current_user_count} / {companyInfo.number_of_allowed_users}
+            </span>
+            <span className="text-sm text-gray-500">
+              {companyInfo.number_of_allowed_users - companyInfo.current_user_count} remaining
+            </span>
+          </div>
+          <Progress
+            value={(companyInfo.current_user_count / companyInfo.number_of_allowed_users) * 100}
+            className="h-2"
+          />
+
+          {/* Warning when approaching limit */}
+          {companyInfo.current_user_count >= companyInfo.number_of_allowed_users * 0.9 && companyInfo.current_user_count < companyInfo.number_of_allowed_users && (
+            <Alert variant="warning" className="mt-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>User limit almost reached</AlertTitle>
+              <AlertDescription>
+                Your company is approaching its user limit. Please contact support to increase your limit.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Error when limit reached */}
+          {companyInfo.current_user_count >= companyInfo.number_of_allowed_users && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>User limit reached</AlertTitle>
+              <AlertDescription>
+                Your company has reached its user limit. You cannot add more users until you upgrade your plan or contact support.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      )}
       <CardContent>
         <Tabs defaultValue="manual" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
@@ -214,7 +289,7 @@ export const UserManualEntry = () => {
               <span>Import from Excel</span>
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="manual" className="space-y-4 py-4">
             <div className="grid md:grid-cols-3 gap-4">
               <div className="grid grid-cols-2 gap-4">
@@ -222,7 +297,7 @@ export const UserManualEntry = () => {
                   <Label htmlFor="firstName">First Name</Label>
                   <Input
                     id="firstName"
-                    value={firstName} 
+                    value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="Enter first name"
                   />
@@ -231,7 +306,7 @@ export const UserManualEntry = () => {
                   <Label htmlFor="lastName">Last Name</Label>
                   <Input
                     id="lastName"
-                    value={lastName} 
+                    value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Enter last name"
                   />
@@ -239,10 +314,10 @@ export const UserManualEntry = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
-                <Input 
+                <Input
                   id="email"
                   type="email"
-                  value={email} 
+                  value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter email address"
                 />
@@ -281,7 +356,7 @@ export const UserManualEntry = () => {
                 </Select>
               </div>
             </div>
-            <Button 
+            <Button
               onClick={handleAddUser}
               className="bg-[#907527] hover:bg-[#705b1e]"
             >
@@ -289,7 +364,7 @@ export const UserManualEntry = () => {
               Add User
             </Button>
           </TabsContent>
-          
+
           <TabsContent value="excel" className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="excel-upload">Upload Excel File with Users</Label>
@@ -331,7 +406,7 @@ export const UserManualEntry = () => {
                 </div>
               </div>
             </div>
-            <Button 
+            <Button
               onClick={handleFileUpload}
               disabled={!file}
               className="bg-[#907527] hover:bg-[#705b1e]"
@@ -355,7 +430,7 @@ export const UserManualEntry = () => {
               />
             </div>
           </div>
-          
+
           {loading ? (
             <div className="space-y-4">
               <Skeleton className="h-12 w-full" />
