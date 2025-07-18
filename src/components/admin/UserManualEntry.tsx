@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { FileSpreadsheet, UserPlus, Upload, Check, UserRound, RefreshCw, Loader2, Search, AlertCircle } from 'lucide-react';
+import ExcelImportGuide from './ExcelImportGuide';
 import {
   Select,
   SelectContent,
@@ -147,16 +148,49 @@ export const UserManualEntry = () => {
     } catch (error) {
       console.error('File upload error:', error);
 
-      // Extract the error message
-      const errorMessage = error instanceof Error ? error.message : "There was an error uploading the file.";
+      // Extract the error message and expected format
+      let errorMessage = "There was an error uploading the file.";
+      let expectedFormat = "";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Try to parse the error response to get expected_format
+        try {
+          const errorData = JSON.parse(error.message);
+          if (errorData.detail) {
+            errorMessage = errorData.detail;
+          }
+          if (errorData.expected_format) {
+            expectedFormat = errorData.expected_format;
+          }
+        } catch {
+          // If parsing fails, use the original error message
+        }
+      }
 
       // Check if the error is about the company user limit
       const isUserLimitError = errorMessage.toLowerCase().includes('limit') &&
         errorMessage.toLowerCase().includes('user');
 
+      // Check if the error is about file format
+      const isFormatError = errorMessage.toLowerCase().includes('format') ||
+        errorMessage.toLowerCase().includes('column') ||
+        errorMessage.toLowerCase().includes('header');
+
+      const title = isUserLimitError 
+        ? "Company User Limit Reached" 
+        : isFormatError 
+        ? "File Format Error" 
+        : "Upload failed";
+
+      const description = expectedFormat 
+        ? `${errorMessage}\n\n${expectedFormat}` 
+        : errorMessage;
+
       toast({
-        title: isUserLimitError ? "Company User Limit Reached" : "Upload failed",
-        description: errorMessage,
+        title,
+        description,
         variant: "destructive",
       });
     }
@@ -366,54 +400,54 @@ export const UserManualEntry = () => {
           </TabsContent>
 
           <TabsContent value="excel" className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="excel-upload">Upload Excel File with Users</Label>
-              <div className="grid gap-2">
-                <Input
-                  id="excel-upload"
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  onChange={handleFileChange}
-                />
+            {/* Excel Import Guide */}
+            <ExcelImportGuide />
+            
+            {/* File Upload Section */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="excel-upload">Upload Excel File with Users</Label>
+                <div className="flex items-center gap-4">
+                  <Button
+                    variant="outline"
+                    component="label"
+                    className="relative cursor-pointer hover:bg-gray-50"
+                    asChild
+                  >
+                    <label htmlFor="excel-upload" className="cursor-pointer">
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      <span className="text-blue-600 font-medium">Choose File</span>
+                      <Input
+                        id="excel-upload"
+                        type="file"
+                        accept=".xlsx,.xls,.csv"
+                        onChange={handleFileChange}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                    </label>
+                  </Button>
+                  
+                  {file && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">Selected:</span>
+                      <span className="text-sm font-medium text-gray-900">{file.name}</span>
+                    </div>
+                  )}
+                </div>
                 <div className="text-xs text-gray-500">
                   Accepted formats: .xlsx, .xls, .csv
                 </div>
               </div>
+              
+              <Button
+                onClick={handleFileUpload}
+                disabled={!file}
+                className="bg-[#907527] hover:bg-[#705b1e] disabled:opacity-50"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Users
+              </Button>
             </div>
-            <div className="flex items-center gap-2">
-              {file && (
-                <div className="text-sm">
-                  Selected: {file.name}
-                </div>
-              )}
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Required Columns</Label>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex items-center gap-2 bg-gray-50 p-2 rounded">
-                    <Check className="h-4 w-4 text-green-500" />
-                    <span>Email Address</span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-gray-50 p-2 rounded">
-                    <Check className="h-4 w-4 text-green-500" />
-                    <span>Name</span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-gray-50 p-2 rounded">
-                    <Check className="h-4 w-4 text-green-500" />
-                    <span>Group</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <Button
-              onClick={handleFileUpload}
-              disabled={!file}
-              className="bg-[#907527] hover:bg-[#705b1e]"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Users
-            </Button>
           </TabsContent>
         </Tabs>
 

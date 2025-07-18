@@ -247,11 +247,22 @@ class UserManagementView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
+        # Check if file was provided
+        if 'file' not in request.FILES:
+            return Response(
+                {
+                    "detail": "No file provided. Please upload a file.",
+                    "expected_format": "The file should have columns: first_name, last_name, email, role (required), username, department (optional)"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         # Get the file from the request
         file = request.FILES['file']
+        file_extension = file.name.split('.')[-1].lower()
         
-        # Check file extension - only supporting CSV for now
-        if file.name.endswith('.csv'):
+        # Check file extension
+        if file_extension == 'csv':
             # Read CSV file
             try:
                 # Simple CSV parsing without pandas
@@ -405,10 +416,13 @@ class UserManagementView(APIView):
                 
             except Exception as e:
                 return Response(
-                    {"detail": f"Error reading CSV file: {str(e)}"},
+                    {
+                        "detail": f"Error reading CSV file: {str(e)}",
+                        "expected_format": "The file should have columns: first_name, last_name, email, role (required), username, department (optional)"
+                    },
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        elif file.name.endswith('.xlsx'):
+        elif file_extension == 'xlsx':
             try:
                 workbook = openpyxl.load_workbook(file)
                 sheet = workbook.active
@@ -565,7 +579,13 @@ class UserManagementView(APIView):
                 return Response(results, status=status.HTTP_201_CREATED)
 
             except Exception as e:
-                return Response({"detail": f"Error reading XLSX file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {
+                        "detail": f"Error reading XLSX file: {str(e)}",
+                        "expected_format": "The file should have columns: first_name, last_name, email, role (required), username, department (optional)"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         elif file.name.endswith('.xls'):
             try:
@@ -726,10 +746,19 @@ class UserManagementView(APIView):
                 return Response(results, status=status.HTTP_201_CREATED)
 
             except Exception as e:
-                return Response({"detail": f"Error reading XLS file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {
+                        "detail": f"Error reading XLS file: {str(e)}",
+                        "expected_format": "The file should have columns: first_name, last_name, email, role (required), username, department (optional)"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         else:
             return Response(
-                {"detail": "Unsupported file format. Please upload a CSV, XLSX, or XLS file."},
+                {
+                    "detail": "Unsupported file format. Please upload a CSV, XLSX, or XLS file.",
+                    "expected_format": "The file should have columns: first_name, last_name, email, role (required), username, department (optional)"
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
