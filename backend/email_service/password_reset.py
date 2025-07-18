@@ -66,8 +66,7 @@ def send_password_reset_email(user, password, company_slug):
         
         # Generate the login URL based on environment
         # Check if we're in production or development
-        # is_production = not getattr(settings, 'DEBUG', False)
-        is_production = True     
+        is_production = not getattr(settings, 'DEBUG', False)
         # Initialize base_url
         base_url = None
         
@@ -84,7 +83,7 @@ def send_password_reset_email(user, password, company_slug):
                 base_url = settings.FRONTEND_URL
             # Fallback to production URL
             else:
-                base_url = 'https://phish-aware-academy.up.railway.app'
+                base_url = 'https://www.cbulwark.tech'
         # For development environment
         else:
             # First check environment variable

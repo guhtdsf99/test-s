@@ -840,6 +840,83 @@ class UserDetailView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    def patch(self, request, user_id=None, company_slug=None):
+        """
+        Partially update a user instance
+        """
+        # If company_slug is provided, check if user has access
+        if company_slug:
+            company = get_object_or_404(Company, slug=company_slug)
+            
+            # Check if user has admin privileges
+            user_role = request.user.role.lower() if request.user.role else ''
+            is_admin = user_role in ['admin', 'company_admin', 'super_admin']
+            
+            # Check if user belongs to this company or is a super admin
+            if not is_admin or (user_role != 'super_admin' and (not request.user.company or request.user.company.id != company.id)):
+                return Response(
+                    {"detail": "You don't have access to manage users in this company."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+                
+            # Get the user
+            user = get_object_or_404(User, id=user_id, company=company)
+            
+            # Get the data from the request
+            data = request.data.copy()
+            
+            # Update is_active status if provided
+            if 'is_active' in data:
+                user.is_active = data.get('is_active')
+            
+            # Update other fields if provided
+            if 'first_name' in data:
+                user.first_name = data.get('first_name')
+            if 'last_name' in data:
+                user.last_name = data.get('last_name')
+            if 'role' in data and data['role']:
+                user.role = data['role']
+            
+            # Handle departments if provided
+            if 'departments' in data:
+                raw_depts = data.get('departments')
+                if raw_depts in [None, '', []]:
+                    raw_depts = []
+                
+                # If departments passed as comma-separated string, split it
+                if isinstance(raw_depts, str):
+                    raw_depts = [d.strip() for d in raw_depts.split(',') if d.strip()]
+                
+                # Convert to ints and validate belong to company
+                valid_departments = []
+                for dept_id in raw_depts:
+                    try:
+                        dept_obj = Department.objects.get(id=int(dept_id), company=company)
+                        valid_departments.append(dept_obj)
+                    except (ValueError, Department.DoesNotExist):
+                        return Response(
+                            {"detail": f"Department {dept_id} not found for this company."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                
+                # If none provided, ensure default IT department exists
+                if not valid_departments:
+                    dept_obj, _ = Department.objects.get_or_create(name='IT', company=company,
+                                                                defaults={'name': 'IT', 'company': company})
+                    valid_departments = [dept_obj]
+                
+                user.departments.set(valid_departments)
+            
+            user.save()
+            
+            serializer = UserSerializer(user)
+            return Response(serializer.data)
+        
+        return Response(
+            {"detail": "Company context is required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
     def delete(self, request, user_id=None, company_slug=None):
         """
         Delete a user instance
@@ -977,7 +1054,7 @@ class UserPasswordResetView(APIView):
 
             # Send password reset email
             try:
-                send_password_reset_email(user, new_password)
+                send_password_reset_email(user, new_password, company_slug)
                 return Response({
                     "detail": "Password reset successful. An email has been sent to the user.",
                     "password": new_password  # Include the password in the response for admin reference
