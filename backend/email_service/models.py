@@ -2,6 +2,8 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
+# Import AI report models
+from .ai_report_models import AIPhishingReport
 
 # Existing models (CSWordEmailServ, EmailTemplate) remain here...
 

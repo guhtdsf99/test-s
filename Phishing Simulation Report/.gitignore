@@ -1,0 +1,9 @@
+# Python virtual environment
+venv/
+
+# Secret credentials
+.env
+
+# Other common ignores
+__pycache__/
+*.pyc

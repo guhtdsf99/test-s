@@ -1,102 +1,268 @@
-# Deploying Phish Aware Academy to Railway
+# Railway Deployment Guide for AI Report System
 
-This guide explains how to deploy the Phish Aware Academy application to Railway.app without requiring a credit card.
+This guide covers deploying the AI report generation system to Railway.
 
-## Prerequisites
+## Pre-deployment Checklist
 
-- A Railway account (sign up at [railway.app](https://railway.app) with GitHub)
-- Your code pushed to a Git repository (GitHub, GitLab, etc.)
+### 1. Environment Variables
+
+Add these environment variables in Railway dashboard:
+
+```env
+# Existing variables
+DEBUG=False
+SECRET_KEY=your-production-secret-key
+DATABASE_URL=your-database-url
+ALLOWED_HOSTS=your-domain.railway.app
+
+# New AI Report variables
+GEMINI_API_KEY=your-actual-gemini-api-key
+```
+
+### 2. Dependencies
+
+Ensure `requirements.txt` includes all AI report dependencies:
+
+```txt
+# AI Report Generation Dependencies
+google-genai==0.8.0
+matplotlib==3.8.2
+pandas==2.1.4
+reportlab==4.0.7
+markdown==3.5.1
+```
+
+### 3. Static Files
+
+Update your Django settings for static file handling:
+
+```python
+# In settings.py
+import os
+
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Media files (uploaded content)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Whitenoise for static file serving
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this
+    # ... other middleware
+]
+```
 
 ## Deployment Steps
 
-### 1. Set Up Your Railway Account
+### 1. Database Migration
 
-1. Go to [railway.app](https://railway.app)
-2. Click "Login" and sign in with GitHub
-3. Complete any verification steps if required
+Railway will automatically run migrations, but ensure your migration file is included:
 
-### 2. Deploy the Backend
+```bash
+# Verify migration exists
+ls backend/email_service/migrations/0002_add_ai_phishing_report.py
+```
 
-1. From the Railway dashboard, click "New Project"
-2. Select "Deploy from GitHub repo"
-3. Choose your repository
-4. Select the backend directory as the source directory
-5. Railway will automatically detect your Django application
+### 2. Media Directory Setup
 
-6. Set up the following environment variables:
-   - `SECRET_KEY`: Generate a random string
-   - `DEBUG`: Set to "False"
-   - `ALLOWED_HOSTS`: Set to your Railway domain (e.g., "*.up.railway.app")
-   - `FRONTEND_URL`: Will be your frontend URL (add after frontend deployment)
-   - `BACKEND_URL`: Will be your backend URL (add after deployment)
+Add to your Django settings:
 
-### 3. Add a PostgreSQL Database
+```python
+# Ensure media directory exists
+import os
+from pathlib import Path
 
-1. In your project, click "New"
-2. Select "Database" and then "PostgreSQL"
-3. Wait for the database to be provisioned
-4. Railway will automatically add the `DATABASE_URL` environment variable to your backend service
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+Path(MEDIA_ROOT).mkdir(parents=True, exist_ok=True)
+Path(os.path.join(MEDIA_ROOT, 'ai_reports')).mkdir(parents=True, exist_ok=True)
+```
 
-### 4. Deploy the Frontend
+### 3. Railway Configuration
 
-1. From the Railway dashboard, click "New Project"
-2. Select "Deploy from GitHub repo"
-3. Choose the same repository
-4. Select the root directory as the source directory
-5. Railway will detect your Node.js application
+Create or update `railway.json`:
 
-6. Set up the following environment variables:
-   - `VITE_API_URL`: Your backend URL (from step 2)
-   - `NODE_ENV`: "production"
+```json
+{
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn config.wsgi:application",
+    "healthcheckPath": "/api/auth/profile/",
+    "healthcheckTimeout": 100,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
+```
 
-### 5. Connect Your Services
+### 4. Procfile (if needed)
 
-1. After both services are deployed, go to your backend service
-2. Update the `FRONTEND_URL` environment variable with your frontend URL
-3. Go to your frontend service
-4. Update the `VITE_API_URL` environment variable with your backend URL
+Create `Procfile` in backend directory:
 
-### 6. Test Your Deployment
+```
+web: python manage.py migrate && gunicorn config.wsgi:application
+```
 
-1. Click on the URL of your frontend service to open your application
-2. Test the application functionality:
-   - Try to log in
-   - Check if the backend API requests work
-   - Verify that email tracking works
+## Post-deployment Verification
 
-## Troubleshooting Common Issues
+### 1. Check API Endpoints
 
-If you encounter problems:
+Test these endpoints after deployment:
 
-1. **Backend not connecting to database**:
-   - Check the `DATABASE_URL` environment variable
-   - Verify that migrations ran successfully
+```bash
+# Replace YOUR_DOMAIN with your Railway domain
+curl -X GET "https://YOUR_DOMAIN.railway.app/api/email/ai-reports/" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
 
-2. **Frontend not connecting to backend**:
-   - Check the `VITE_API_URL` environment variable
-   - Verify CORS settings in your Django settings
+### 2. Test Report Generation
 
-3. **Deployment fails**:
-   - Check the build logs for errors
-   - Ensure all dependencies are in your requirements.txt or package.json
+1. Login to your deployed application
+2. Navigate to Campaigns page
+3. Click "Download a full AI report now"
+4. Verify report generation works
 
-4. **Application errors**:
-   - Check the logs in the Railway dashboard
-   - Look for error messages in the browser console
+### 3. Check Logs
 
-## Railway Free Tier Limitations
+Monitor Railway logs for any errors:
 
-Railway provides $5 of free credits per month, which is enough for testing but has some limitations:
+```bash
+# In Railway dashboard, check deployment logs for:
+# - Migration success
+# - Static file collection
+# - AI report module imports
+# - Media directory creation
+```
 
-- Projects will sleep after 3 days of inactivity
-- Limited compute resources
-- Limited database storage
+## Troubleshooting
 
-For production use, you may need to upgrade to a paid plan or consider other hosting options.
+### Common Issues
 
-## Custom Domain Setup (Optional)
+1. **Import Errors**
+   ```
+   ModuleNotFoundError: No module named 'google.genai'
+   ```
+   - Ensure all dependencies are in requirements.txt
+   - Check Railway build logs
 
-1. If you have a custom domain, go to your service settings
-2. Click on "Domains"
-3. Enter your domain name
-4. Follow the DNS configuration instructions provided by Railway
+2. **Media Directory Issues**
+   ```
+   FileNotFoundError: [Errno 2] No such file or directory: 'media/ai_reports'
+   ```
+   - Add media directory creation to settings.py
+   - Ensure MEDIA_ROOT is configured
+
+3. **API Key Issues**
+   ```
+   Error: GEMINI_API_KEY not found
+   ```
+   - Set GEMINI_API_KEY in Railway environment variables
+   - Verify the key is valid
+
+4. **Database Migration Issues**
+   ```
+   django.db.utils.ProgrammingError: relation "email_service_aiphishingreport" does not exist
+   ```
+   - Ensure migration file is committed to git
+   - Check Railway deployment logs for migration errors
+
+### Performance Optimization
+
+1. **Async Processing**
+   - AI report generation runs in background threads
+   - No additional configuration needed for Railway
+
+2. **File Storage**
+   - Reports are stored in media directory
+   - Consider using Railway's persistent storage for production
+
+3. **Memory Usage**
+   - AI analysis and PDF generation are memory-intensive
+   - Monitor Railway resource usage
+   - Consider upgrading plan if needed
+
+## Security Considerations
+
+### 1. Environment Variables
+
+Never commit sensitive data:
+
+```bash
+# Add to .gitignore
+.env
+*.env
+```
+
+### 2. API Access
+
+Ensure all AI report endpoints require authentication:
+
+```python
+# All views use @permission_classes([IsAuthenticated])
+```
+
+### 3. File Access
+
+Reports are company-scoped - users can only access their company's reports.
+
+## Monitoring
+
+### 1. Error Tracking
+
+Add logging for AI report generation:
+
+```python
+# In Django settings
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'email_service.ai_report_generator': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    },
+}
+```
+
+### 2. Health Checks
+
+The AI report system doesn't require additional health checks - it uses existing Django endpoints.
+
+## Scaling Considerations
+
+### 1. Background Processing
+
+For high-volume usage, consider:
+- Using Celery for background tasks
+- Implementing a job queue system
+- Adding progress tracking
+
+### 2. File Storage
+
+For production scale:
+- Use cloud storage (AWS S3, Google Cloud Storage)
+- Implement file cleanup policies
+- Add CDN for report downloads
+
+## Support
+
+If you encounter issues:
+
+1. Check Railway deployment logs
+2. Verify all environment variables are set
+3. Test API endpoints manually
+4. Review Django error logs
+5. Ensure all dependencies are installed
+
+The AI report system is designed to be robust and handle errors gracefully, but proper configuration is essential for smooth operation.

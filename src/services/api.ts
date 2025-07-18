@@ -870,6 +870,18 @@ export const userService = {
 };
 
 // LMS Campaign service
+export interface AIReport {
+  report_id: string;
+  report_name: string;
+  status: 'generating' | 'completed' | 'failed';
+  campaigns_count: number;
+  start_date: string;
+  end_date: string;
+  created_at: string;
+  completed_at?: string;
+  pdf_available: boolean;
+}
+
 export const phishingService = {
   // Get all phishing campaigns for the current company
   async getCampaigns(): Promise<Campaign[]> {
@@ -881,6 +893,70 @@ export const phishingService = {
       return await response.json();
     } catch (error) {
       console.error('Error fetching campaigns:', error);
+      throw error;
+    }
+  },
+};
+
+export const aiReportService = {
+  // Generate or get existing AI report
+  async generateReport(): Promise<AIReport> {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/email/ai-reports/generate/`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate report');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error generating AI report:', error);
+      throw error;
+    }
+  },
+
+  // Get report status
+  async getReportStatus(reportId: string): Promise<AIReport> {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/email/ai-reports/${reportId}/status/`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get report status');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting report status:', error);
+      throw error;
+    }
+  },
+
+  // Download report PDF
+  async downloadReport(reportId: string): Promise<Blob> {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/email/ai-reports/${reportId}/download/`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to download report');
+      }
+      return await response.blob();
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      throw error;
+    }
+  },
+
+  // List all reports for the company
+  async listReports(): Promise<AIReport[]> {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/email/ai-reports/`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to list reports');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error listing reports:', error);
       throw error;
     }
   },

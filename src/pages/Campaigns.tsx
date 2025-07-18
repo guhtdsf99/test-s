@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { BarChart, Calendar, FileText, Mail, Plus, Search, Users, CheckCircle, AlertCircle } from 'lucide-react';
-import { phishingService, Campaign } from '@/services/api';
+import { BarChart, Calendar, FileText, Mail, Plus, Search, Users, CheckCircle, AlertCircle, Download, Loader2 } from 'lucide-react';
+import { phishingService, Campaign, aiReportService } from '@/services/api';
 import {
   Select,
   SelectContent,
@@ -71,6 +71,142 @@ const transformCampaign = (campaign: any) => {
 
 const EmailTemplates = lazy(() => import('./TemplateEditor'));
 const LandingPageTemplates = lazy(() => import('./LandingPageTemplateEditor.tsx'));
+
+// AI Report Button Component
+const AIReportButton = () => {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [reportStatus, setReportStatus] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const handleGenerateReport = async () => {
+    try {
+      setIsGenerating(true);
+      setReportStatus('Initiating report generation...');
+      
+      // Generate or get existing report
+      const reportData = await aiReportService.generateReport();
+      
+      if (reportData.status === 'completed' && reportData.pdf_available) {
+        // Report is already available, download it
+        setReportStatus('Downloading existing report...');
+        const blob = await aiReportService.downloadReport(reportData.report_id);
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `${reportData.report_name}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        toast({
+          title: 'Success',
+          description: 'AI report downloaded successfully!',
+        });
+      } else if (reportData.status === 'generating') {
+        // Report is being generated, poll for status
+        setReportStatus('Generating AI report... This may take a few minutes.');
+        pollReportStatus(reportData.report_id);
+      } else {
+        throw new Error('Unexpected report status');
+      }
+    } catch (error) {
+      console.error('Error generating report:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to generate AI report',
+        variant: 'destructive',
+      });
+      setIsGenerating(false);
+      setReportStatus(null);
+    }
+  };
+
+  const pollReportStatus = async (reportId: string) => {
+    const maxAttempts = 60; // 5 minutes with 5-second intervals
+    let attempts = 0;
+
+    const checkStatus = async () => {
+      try {
+        attempts++;
+        const status = await aiReportService.getReportStatus(reportId);
+        
+        if (status.status === 'completed' && status.pdf_available) {
+          setReportStatus('Report completed! Downloading...');
+          
+          // Download the completed report
+          const blob = await aiReportService.downloadReport(reportId);
+          
+          // Create download link
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = `${status.report_name}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          
+          toast({
+            title: 'Success',
+            description: 'AI report generated and downloaded successfully!',
+          });
+          
+          setIsGenerating(false);
+          setReportStatus(null);
+        } else if (status.status === 'failed') {
+          throw new Error('Report generation failed');
+        } else if (attempts >= maxAttempts) {
+          throw new Error('Report generation timed out');
+        } else {
+          // Continue polling
+          setReportStatus(`Generating AI report... (${Math.round((attempts / maxAttempts) * 100)}%)`);
+          setTimeout(checkStatus, 5000);
+        }
+      } catch (error) {
+        console.error('Error checking report status:', error);
+        toast({
+          title: 'Error',
+          description: error instanceof Error ? error.message : 'Failed to check report status',
+          variant: 'destructive',
+        });
+        setIsGenerating(false);
+        setReportStatus(null);
+      }
+    };
+
+    setTimeout(checkStatus, 5000);
+  };
+
+  return (
+    <div className="text-center">
+      <Button
+        onClick={handleGenerateReport}
+        disabled={isGenerating}
+        className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-8 py-3 text-lg font-semibold shadow-lg"
+      >
+        {isGenerating ? (
+          <>
+            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            Generating...
+          </>
+        ) : (
+          <>
+            <Download className="h-5 w-5 mr-2" />
+            Download a full AI report now
+          </>
+        )}
+      </Button>
+      {reportStatus && (
+        <p className="mt-2 text-sm text-gray-600">{reportStatus}</p>
+      )}
+    </div>
+  );
+};
 
 const Campaigns = () => {
   const { companySlug } = useParams<{ companySlug: string }>();
@@ -318,6 +454,11 @@ const Campaigns = () => {
                   </TabsContent>
                   
                   <TabsContent value="completed" className="space-y-4 mt-6">
+                    {/* AI Report Download Button */}
+                    <div className="flex justify-center mb-6">
+                      <AIReportButton />
+                    </div>
+                    
                     {completedCampaigns.length > 0 ? (
                       <CampaignList 
                         campaigns={completedCampaigns}

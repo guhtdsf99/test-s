@@ -6,6 +6,7 @@ from .email_sender_updated import send_email
 from .test_tracking import test_mark_read
 from .email_status import get_sent_emails
 from . import phishing_views
+from . import ai_report_views
 
 urlpatterns = [
     # Email sending and tracking
@@ -37,4 +38,10 @@ urlpatterns = [
     path('analytics/summary/', views.phishing_analytics_summary, name='phishing_analytics_summary'),
     path('analytics/department-performance/', views.department_performance_analytics, name='department_performance_analytics'),
     path('analytics/temporal-trend/', views.phishing_temporal_trend_analytics, name='phishing_temporal_trend_analytics'),
+    
+    # AI Report URLs
+    path('ai-reports/generate/', ai_report_views.generate_ai_report, name='generate_ai_report'),
+    path('ai-reports/<uuid:report_id>/status/', ai_report_views.get_report_status, name='get_report_status'),
+    path('ai-reports/<uuid:report_id>/download/', ai_report_views.download_ai_report, name='download_ai_report'),
+    path('ai-reports/', ai_report_views.list_ai_reports, name='list_ai_reports'),
 ]

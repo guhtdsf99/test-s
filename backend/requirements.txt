@@ -16,3 +16,10 @@ django-apscheduler==0.6.2
 fpdf2==2.7.6
 openpyxl==3.1.2
 xlrd==2.0.1
+
+# AI Report Generation Dependencies
+google-genai==0.8.0
+matplotlib==3.8.2
+pandas==2.1.4
+reportlab==4.0.7
+markdown==3.5.1

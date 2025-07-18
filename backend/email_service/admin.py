@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.db import models
 from django.utils.safestring import mark_safe
 from .models import CSWordEmailServ, EmailTemplate, PhishingCampaign, LandingPageTemplate
+from .ai_report_models import AIPhishingReport
 
 @admin.register(CSWordEmailServ)
 class CSWordEmailServAdmin(admin.ModelAdmin):
@@ -97,3 +98,42 @@ class PhishingCampaignAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+@admin.register(AIPhishingReport)
+class AIPhishingReportAdmin(admin.ModelAdmin):
+    list_display = ('report_name', 'company', 'status', 'campaigns_count', 'start_date', 'end_date', 'created_at', 'completed_at')
+    list_filter = ('status', 'company', 'created_at')
+    search_fields = ('report_name', 'company__name')
+    readonly_fields = ('id', 'created_at', 'updated_at', 'completed_at', 'analysis_preview')
+    
+    fieldsets = (
+        (None, {
+            'fields': ('id', 'company', 'report_name', 'status')
+        }),
+        ('Campaign Data', {
+            'fields': ('campaigns_count', 'start_date', 'end_date')
+        }),
+        ('Report Files', {
+            'fields': ('pdf_file_path',)
+        }),
+        ('Analysis Data', {
+            'fields': ('analysis_data', 'analysis_preview'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at', 'completed_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def analysis_preview(self, obj):
+        """Display a preview of the analysis data"""
+        if obj.analysis_data:
+            preview = ""
+            if 'executive_summary' in obj.analysis_data:
+                preview += f"<h4>Executive Summary:</h4><p>{obj.analysis_data['executive_summary'][:200]}...</p>"
+            if 'conclusion' in obj.analysis_data:
+                preview += f"<h4>Conclusion:</h4><p>{obj.analysis_data['conclusion'][:200]}...</p>"
+            return mark_safe(preview)
+        return "No analysis data"
+    analysis_preview.short_description = 'Analysis Preview'
