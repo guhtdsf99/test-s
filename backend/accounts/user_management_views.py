@@ -955,9 +955,15 @@ class UserDepartmentUpdateView(APIView):
     """
     permission_classes = [permissions.IsAuthenticated]
     
+    def patch(self, request, user_id=None, company_slug=None):
+        """
+        Update a user's department (PATCH method)
+        """
+        return self.put(request, user_id, company_slug)
+    
     def put(self, request, user_id=None, company_slug=None):
         """
-        Update a user's department
+        Update a user's department (PUT method)
         """
         # If company_slug is provided, check if user has access
         if company_slug:
