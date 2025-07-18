@@ -204,20 +204,22 @@ def convert_campaigns_to_mockup_format(company, finished_campaigns, emails):
 def check_if_new_report_needed(company):
     """Check if a new report is needed based on finished campaigns"""
     
-    # Get all finished campaigns for the company
+    # Get all finished campaigns for the company (using same logic as get_finished_campaigns_data)
     finished_campaigns = PhishingCampaign.objects.filter(
         company=company,
         end_date__lt=timezone.now().date()
     ).exclude(
-        Q(campaign_name__icontains='deleted') | Q(campaign_name__icontains='test')
-    )
+        Q(campaign_name__icontains='deleted') | 
+        Q(campaign_name__icontains='draft')
+        # Removed 'test' exclusion to match the updated logic
+    ).order_by('start_date')
     
     current_finished_count = finished_campaigns.count()
     
     if current_finished_count == 0:
         return False, None, "No finished campaigns available"
     
-    # Get the latest report for this company
+    # Get the latest completed report for this company
     latest_report = AIPhishingReport.objects.filter(
         company=company,
         status='completed'
@@ -226,9 +228,14 @@ def check_if_new_report_needed(company):
     if not latest_report:
         return True, finished_campaigns, "No previous report exists"
     
+    # Get the end date of the latest finished campaign
+    latest_campaign_end_date = finished_campaigns.last().end_date
+    
     # Check if new campaigns have finished since the last report
-    if current_finished_count > latest_report.campaigns_count:
-        return True, finished_campaigns, f"New campaigns finished ({current_finished_count} vs {latest_report.campaigns_count})"
+    # Compare both count and end date to ensure we capture all scenarios
+    if (current_finished_count > latest_report.campaigns_count or 
+        latest_campaign_end_date > latest_report.end_date):
+        return True, finished_campaigns, f"New campaigns finished (Count: {current_finished_count} vs {latest_report.campaigns_count}, Latest end date: {latest_campaign_end_date} vs {latest_report.end_date})"
     
     return False, latest_report, "No new campaigns since last report"
 
