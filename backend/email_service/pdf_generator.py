@@ -100,6 +100,7 @@ def build_pdf(kpis, kpis_analysis, trend_chart_img, analysis_trend, group_chart_
         try:
             # Look for logo in static directory first
             logo_paths = [
+                os.path.join(os.path.dirname(__file__), '..', 'static', 'images', 'cs-logo.png'),
                 'backend/static/images/cs-logo.png',
                 os.path.join(output_dir, 'cs-logo.png'),
                 'backend/media/cs-logo.png',
@@ -107,16 +108,19 @@ def build_pdf(kpis, kpis_analysis, trend_chart_img, analysis_trend, group_chart_
             ]
             logo_path = None
             for path in logo_paths:
-                if os.path.exists(path):
-                    logo_path = path
+                abs_path = os.path.abspath(path)
+                if os.path.exists(abs_path):
+                    logo_path = abs_path
                     break
             
             if logo_path:
                 cs_logo = Image(logo_path, width=1.8*inch, height=0.6*inch)
                 cs_logo.preserveAspectRatio = True
                 cs_logo.drawOn(canvas, (doc.pagesize[0]/2)-(0.9*inch), y_pos_header)
+                print(f"✅ CSword logo loaded from: {logo_path}")
             else:
                 canvas.drawRightString(doc.pagesize[0] - doc.rightMargin, y_pos_header + 0.2*inch, "CSword Logo")
+                print("⚠️ CSword logo not found, using text placeholder")
         except Exception as e:
             print(f"Could not load CSword logo: {e}")
             canvas.drawRightString(doc.pagesize[0] - doc.rightMargin, y_pos_header + 0.2*inch, "CSword Logo")
@@ -125,32 +129,32 @@ def build_pdf(kpis, kpis_analysis, trend_chart_img, analysis_trend, group_chart_
         canvas.saveState()
         y_pos_header = doc.pagesize[1] - 1.0 * inch
         
-        # Try to add company logo
+        # Try to add company logo (from company's uploaded logo)
         try:
-            logo_paths = [
-                os.path.join(output_dir, 'logo.png'),
-                'backend/media/logo.png',
-                'backend/static/logo.png'
-            ]
-            logo_path = None
-            for path in logo_paths:
-                if os.path.exists(path):
-                    logo_path = path
-                    break
-            
-            if logo_path:
-                logo = Image(logo_path, width=1.2*inch, height=0.4*inch)
-                logo.preserveAspectRatio = True
-                logo.drawOn(canvas, doc.leftMargin, y_pos_header)
-            else:
-                canvas.drawString(doc.leftMargin, y_pos_header + 0.2*inch, "Company Logo")
+            # First try to get company logo from media directory
+            from accounts.models import Company
+            try:
+                company_obj = Company.objects.get(name=company_name)
+                if company_obj.company_logo:
+                    company_logo_path = company_obj.company_logo.path
+                    if os.path.exists(company_logo_path):
+                        logo = Image(company_logo_path, width=1.2*inch, height=0.4*inch)
+                        logo.preserveAspectRatio = True
+                        logo.drawOn(canvas, doc.leftMargin, y_pos_header)
+                    else:
+                        canvas.drawString(doc.leftMargin, y_pos_header + 0.2*inch, f"{company_name} Logo")
+                else:
+                    canvas.drawString(doc.leftMargin, y_pos_header + 0.2*inch, f"{company_name} Logo")
+            except Company.DoesNotExist:
+                canvas.drawString(doc.leftMargin, y_pos_header + 0.2*inch, f"{company_name} Logo")
         except Exception as e:
             print(f"Could not load company logo: {e}")
-            canvas.drawString(doc.leftMargin, y_pos_header + 0.2*inch, "Company Logo")
+            canvas.drawString(doc.leftMargin, y_pos_header + 0.2*inch, f"{company_name} Logo")
         
         # Try to add CSword logo
         try:
             logo_paths = [
+                os.path.join(os.path.dirname(__file__), '..', 'static', 'images', 'cs-logo.png'),
                 'backend/static/images/cs-logo.png',
                 os.path.join(output_dir, 'cs-logo.png'),
                 'backend/media/cs-logo.png',
@@ -158,18 +162,21 @@ def build_pdf(kpis, kpis_analysis, trend_chart_img, analysis_trend, group_chart_
             ]
             logo_path = None
             for path in logo_paths:
-                if os.path.exists(path):
-                    logo_path = path
+                abs_path = os.path.abspath(path)
+                if os.path.exists(abs_path):
+                    logo_path = abs_path
                     break
             
             if logo_path:
                 cs_logo = Image(logo_path, width=1.2*inch, height=0.4*inch)
                 cs_logo.preserveAspectRatio = True
-                cs_logo.drawOn(canvas, doc.pagesize[0] - doc.rightMargin - cs_logo.drawWidth, y_pos_header)
+                cs_logo.drawOn(canvas, doc.pagesize[0] - doc.rightMargin - 1.2*inch, y_pos_header)
+                print(f"✅ CSword header logo loaded from: {logo_path}")
             else:
                 canvas.drawRightString(doc.pagesize[0] - doc.rightMargin, y_pos_header + 0.2*inch, "CSword Logo")
+                print("⚠️ CSword header logo not found, using text placeholder")
         except Exception as e:
-            print(f"Could not load CSword logo: {e}")
+            print(f"Could not load CSword header logo: {e}")
             canvas.drawRightString(doc.pagesize[0] - doc.rightMargin, y_pos_header + 0.2*inch, "CSword Logo")
         
         canvas.setStrokeColor(BORDER_COLOR)
@@ -241,22 +248,28 @@ def build_pdf(kpis, kpis_analysis, trend_chart_img, analysis_trend, group_chart_
     
     # Try to add company logo on cover
     try:
-        logo_paths = [
-            os.path.join(output_dir, 'logo.png'),
-            'backend/media/logo.png',
-            'backend/static/logo.png'
-        ]
-        logo_path = None
-        for path in logo_paths:
-            if os.path.exists(path):
-                logo_path = path
-                break
-        
-        if logo_path:
-            logo = Image(logo_path, width=4*inch, height=1.3*inch)
-            story.append(logo)
+        # First try to get company logo from database
+        from accounts.models import Company
+        try:
+            company_obj = Company.objects.get(name=company_name)
+            if company_obj.company_logo:
+                company_logo_path = company_obj.company_logo.path
+                if os.path.exists(company_logo_path):
+                    logo = Image(company_logo_path, width=4*inch, height=1.3*inch)
+                    logo.preserveAspectRatio = True
+                    story.append(logo)
+                else:
+                    # Fallback text if logo file doesn't exist
+                    story.append(Paragraph(f"{company_name}", cover_date_style))
+            else:
+                # No logo uploaded, show company name
+                story.append(Paragraph(f"{company_name}", cover_date_style))
+        except Company.DoesNotExist:
+            # Company not found, show company name
+            story.append(Paragraph(f"{company_name}", cover_date_style))
     except Exception as e:
         print(f"Could not load company logo for cover: {e}")
+        story.append(Paragraph(f"{company_name}", cover_date_style))
     
     story.append(Spacer(1, 0.2 * inch))
     story.append(HRFlowable(6.5*inch, thickness=1, color=BORDER_COLOR))
@@ -381,6 +394,7 @@ def build_pdf(kpis, kpis_analysis, trend_chart_img, analysis_trend, group_chart_
     # Try to add stamp
     try:
         stamp_paths = [
+            os.path.join(os.path.dirname(__file__), '..', 'static', 'images', 'stamp.png'),
             'backend/static/images/stamp.png',
             os.path.join(output_dir, 'stamp.png'),
             'backend/media/stamp.png',
@@ -388,8 +402,9 @@ def build_pdf(kpis, kpis_analysis, trend_chart_img, analysis_trend, group_chart_
         ]
         stamp_path = None
         for path in stamp_paths:
-            if os.path.exists(path):
-                stamp_path = path
+            abs_path = os.path.abspath(path)
+            if os.path.exists(abs_path):
+                stamp_path = abs_path
                 break
         
         if stamp_path:
@@ -398,8 +413,10 @@ def build_pdf(kpis, kpis_analysis, trend_chart_img, analysis_trend, group_chart_
             stamp_table = Table([[stamp_image]], hAlign='CENTER')
             stamp_table.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
             story.append(stamp_table)
+            print(f"✅ CSword stamp loaded from: {stamp_path}")
         else:
             story.append(Paragraph("[CSword Official Stamp]", closing_style))
+            print("⚠️ CSword stamp not found, using text placeholder")
     except Exception as e:
         print(f"Could not load stamp: {e}")
         story.append(Paragraph("[CSword Official Stamp]", closing_style))
