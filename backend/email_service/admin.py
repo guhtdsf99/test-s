@@ -106,6 +106,10 @@ class AIPhishingReportAdmin(admin.ModelAdmin):
     search_fields = ('report_name', 'company__name')
     readonly_fields = ('id', 'created_at', 'updated_at', 'completed_at', 'analysis_preview')
     
+    def has_module_permission(self, request):
+        """Hide from admin menu but keep accessible via direct URL"""
+        return False
+    
     fieldsets = (
         (None, {
             'fields': ('id', 'company', 'report_name', 'status')
