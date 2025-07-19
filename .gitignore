@@ -25,8 +25,8 @@ dist-ssr
 *.sw?
 
 # SQLite database
-db.sqlite3
-backend/db.sqlite3
+#db.sqlite3
+#backend/db.sqlite3
 
 # Python / Django specific
 __pycache__/
