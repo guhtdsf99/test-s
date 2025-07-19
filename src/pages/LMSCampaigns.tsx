@@ -62,7 +62,7 @@ const LMSCampaigns = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4 mb-6">
           <div className="flex items-center gap-2">
             <Video className="h-6 w-6 text-[#907527]" />
-              <h1 className="text-2xl font-bold text-indigo-400">LMS Management</h1>
+            <h1 className="text-2xl font-bold text-indigo-400">LMS Management</h1>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -71,15 +71,15 @@ const LMSCampaigns = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="campaigns" className="w-full">
+        <Tabs defaultValue="videos" className="w-full">
           <TabsList className="grid w-full mb-6 grid-cols-3">
-            <TabsTrigger value="campaigns" className="flex-1 flex items-center justify-center gap-1">
-              <FileText className="h-4 w-4" />
-              <span>Campaigns</span>
-            </TabsTrigger>
             <TabsTrigger value="videos" className="flex-1 flex items-center justify-center gap-1">
               <Video className="h-4 w-4" />
               <span>Videos</span>
+            </TabsTrigger>
+            <TabsTrigger value="campaigns" className="flex-1 flex items-center justify-center gap-1">
+              <FileText className="h-4 w-4" />
+              <span>Campaigns</span>
             </TabsTrigger>
             <TabsTrigger value="certificates" className="flex-1 flex items-center justify-center gap-1">
               <Award className="h-4 w-4" />
@@ -106,7 +106,7 @@ const LMSCampaigns = () => {
                   Your Certificates
                 </h2>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {loadingCertificates ? (
                   <p>Loading certificates...</p>
